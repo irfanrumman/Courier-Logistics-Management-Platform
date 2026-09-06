@@ -1,0 +1,21 @@
+model PricingRule {
+  id           String   @id @default(uuid())
+
+  fromZoneId   String
+  fromZone     Zone     @relation("PricingFromZone", fields: [fromZoneId], references: [id], onDelete: Cascade)
+
+  toZoneId     String
+  toZone       Zone     @relation("PricingToZone", fields: [toZoneId], references: [id], onDelete: Cascade)
+
+  weightMin    Decimal  @db.Decimal(8, 2)
+  weightMax    Decimal  @db.Decimal(8, 2)
+  basePrice    Decimal  @db.Decimal(10, 2)
+  perKgRate    Decimal  @db.Decimal(10, 2)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([fromZoneId], name: "idx_pricingRule_fromZoneId")
+  @@index([toZoneId], name: "idx_pricingRule_toZoneId")
+  @@map("pricing_rules")
+}

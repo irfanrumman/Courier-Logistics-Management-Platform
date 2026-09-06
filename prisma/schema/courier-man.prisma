@@ -1,0 +1,53 @@
+model CourierMan {
+  id                 String   @id @default(uuid())
+ 
+
+  courierType        CourierType
+  vehicleType        String?
+  vehicleNumber      String?  @unique
+  licenseNumber      String?  @unique
+  maxCapacity        Int?
+
+  currentHubId       String?
+  currentHub         Hub?     @relation(fields: [currentHubId], references: [id], onDelete: SetNull)
+
+  zoneId             String?
+  zone               Zone?    @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+
+  bio                String?
+  qualifications     String?
+  experienceYears    Int?
+  resumeUrl          String?
+  resumePublicId     String?
+  additionalFiles    Json?
+
+  currentLatitude    Float?
+  currentLongitude   Float?
+
+  isAvailable        Boolean  @default(true)
+  currentStatus      CourierManCurrentStatus @default(ACTIVE)
+  rating             Decimal  @default(0.00) @db.Decimal(3, 2)
+  totalDeliveries    Int      @default(0)
+
+  verificationStatus CourierManVerificationStatus @default(PENDING)
+  rejectionReason    String?
+  reviewedBy         String?
+  reviewedAt         DateTime?
+
+  isDeleted          Boolean   @default(false)
+  deletedAt          DateTime?
+
+   userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  transferShipments  Shipment[] @relation("ShipmentTransferCourierMan")
+  lastMileShipments  Shipment[] @relation("ShipmentLastMileCourierMan")
+   codCollections    CodCollection[] 
+
+  @@index([userId], name: "idx_courierMan_userId")
+  @@map("courierMans")
+}
+

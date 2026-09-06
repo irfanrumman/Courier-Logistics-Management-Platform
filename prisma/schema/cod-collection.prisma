@@ -1,0 +1,21 @@
+model CodCollection {
+  id String @id @default(uuid())
+
+  shipmentId String   @unique
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  amountCollected Decimal   @db.Decimal(10, 2)
+  collectedAt     DateTime?
+
+  collectedByCourierManId String?
+  collectedByCourierMan   CourierMan? @relation(fields: [collectedByCourierManId], references: [id], onDelete: SetNull)
+
+  isRemittedToSender Boolean   @default(false)
+  remittedAmount     Decimal?  @db.Decimal(10, 2)
+  remittedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cod_collections")
+}

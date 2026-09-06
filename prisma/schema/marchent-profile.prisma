@@ -1,0 +1,25 @@
+model MerchantProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  businessName    String
+  ownerName       String
+
+  defaultPickupAddressLine String?
+  defaultPickupDistrict    String?
+  defaultPickupThana       String?
+  defaultPickupPostalCode  String?
+
+  tradeLicenseNumber String?  @unique
+  codLimit           Decimal  @default(5000.00) @db.Decimal(10, 2)
+
+  verificationStatus MerchantVerificationStatus @default(UNVERIFIED)
+  reviewedBy         String?
+  reviewedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("merchant_profiles")
+}

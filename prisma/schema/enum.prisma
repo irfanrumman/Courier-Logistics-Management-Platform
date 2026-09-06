@@ -1,0 +1,101 @@
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  CUSTOMER
+  COURIER_MAN
+  HUB_MANAGER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  DELETED
+}
+
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AuthProvider {
+  CREDENTIAL
+  GOOGLE
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum ShipmentPaymentType {
+  PREPAID
+  COD
+}
+enum PaymentMethod {
+  CARD
+  CASH_ON_DELIVERY
+  BKASH
+  
+}
+
+enum CourierManVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CourierManCurrentStatus {
+    ACTIVE
+    ON_LEAVE
+    SUSPENDED
+}
+
+enum CustomerType {
+  INDIVIDUAL
+  MARCHANT
+}
+
+enum MerchantVerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+}
+
+enum HubManagerStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+}
+
+enum HubManagerVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CourierType {
+  HUB_TRANSFER
+  LAST_MILE
+}
+
+enum ShipmentStatus {
+  PENDING
+  PICKUP_REQUESTED
+  COURIER_ASSIGNED
+  PICKED_UP
+  AT_ORIGIN_HUB
+  IN_TRANSIT
+  AT_DESTINATION_HUB
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED_DELIVERY
+  RETURNED
+}
+

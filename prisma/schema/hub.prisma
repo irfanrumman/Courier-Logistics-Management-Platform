@@ -1,0 +1,19 @@
+model Hub {
+  id           String   @id @default(uuid())
+  name         String
+  code         String   @unique
+  address      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  zoneId       String
+  zone         Zone     @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+
+  courierMans      CourierMan[]
+  hubManager       HubManager?
+
+  shipmentsAsOrigin      Shipment[] @relation("ShipmentOrigin")
+  shipmentsAsDestination Shipment[] @relation("ShipmentDestination")
+
+  @@map("hubs")
+}

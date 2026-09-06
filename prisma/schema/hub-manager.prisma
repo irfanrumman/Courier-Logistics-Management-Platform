@@ -1,0 +1,36 @@
+
+
+model HubManager {
+  id String @id @default(uuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  hubId String? @unique
+  hub   Hub?    @relation(fields: [hubId], references: [id], onDelete: SetNull)
+
+  employeeId String? @unique
+
+  bio             String?
+  qualifications  String?
+  experienceYears Int?
+  resumeUrl       String?
+  resumePublicId  String?
+  additionalFiles Json?
+
+  status HubManagerStatus @default(ACTIVE)
+
+  verificationStatus HubManagerVerificationStatus @default(PENDING)
+  rejectionReason    String?
+  reviewedBy         String?
+  reviewedAt         DateTime?
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  joinedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("hub_managers")
+}

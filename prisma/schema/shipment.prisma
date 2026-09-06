@@ -1,0 +1,54 @@
+
+
+model Shipment {
+  id             String @id @default(uuid())
+  trackingNumber String @unique
+
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Restrict)
+
+  senderAddressLine String
+  senderDistrict    String
+  senderThana       String
+  senderPostalCode  String?
+  senderLandmark    String?
+
+  receiverName         String
+  receiverPhone        String
+  receiverAddressLine  String
+  receiverDistrict     String
+  receiverThana        String
+  receiverPostalCode   String?
+  receiverLandmark     String?
+
+  originHubId String
+  originHub   Hub    @relation("ShipmentOrigin", fields: [originHubId], references: [id], onDelete: Restrict)
+
+  destinationHubId String
+  destinationHub   Hub    @relation("ShipmentDestination", fields: [destinationHubId], references: [id], onDelete: Restrict)
+
+  transferCourierManId String?
+  transferCourierMan   CourierMan? @relation("ShipmentTransferCourierMan", fields: [transferCourierManId], references: [id], onDelete: SetNull)
+
+  lastMileCourierManId String?
+  lastMileCourierMan   CourierMan? @relation("ShipmentLastMileCourierMan", fields: [lastMileCourierManId], references: [id], onDelete: SetNull)
+
+  status          ShipmentStatus      @default(PENDING)
+  weightKg        Decimal             @db.Decimal(8, 2)
+  deliveryCharge  Decimal             @db.Decimal(10, 2)
+  paymentType     ShipmentPaymentType @default(PREPAID)
+  codAmount       Decimal?            @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  statusHistory ShipmentStatusHistory[]
+  payment       Payment?
+  codCollection CodCollection?
+
+  @@index([senderId], name: "idx_shipment_senderId")
+  @@index([originHubId], name: "idx_shipment_originHubId")
+  @@index([destinationHubId], name: "idx_shipment_destinationHubId")
+  @@index([status], name: "idx_shipment_status")
+  @@map("shipments")
+}

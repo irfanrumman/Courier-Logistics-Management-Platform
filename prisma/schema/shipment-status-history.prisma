@@ -1,0 +1,17 @@
+model ShipmentStatusHistory {
+  id            String   @id @default(uuid())
+
+  shipmentId    String
+  shipment      Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  status        ShipmentStatus
+  note          String?
+
+  updatedById   String
+  updatedBy     User     @relation(fields: [updatedById], references: [id], onDelete: Restrict)
+
+  createdAt     DateTime @default(now())
+
+  @@index([shipmentId], name: "idx_statusHistory_shipmentId")
+  @@map("shipment_status_histories")
+}
