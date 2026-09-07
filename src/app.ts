@@ -5,6 +5,9 @@ import express, { Application, Request, Response } from "express";
 import httpStatus from "http-status";
 import config from "./app/config";
 import helmet from "helmet";
+import { notFound } from "./app/middleware/notFound";
+import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
+import { AuthRoutes } from "./app/modules/auth/auth.route";
 
 
 const app: Application = express();
@@ -29,7 +32,7 @@ app.use(cookieParser());
 
 
 //API
-app.use("/api/v1/auth", ()=>{});
+app.use("/api/v1/auth", AuthRoutes);
 
 
 
@@ -41,7 +44,9 @@ app.get("/", async (req: Request, res: Response) => {
 	});
 });
 
-//globalError & nOtFound
+//globalError & notFound
+app.use(globalErrorHandler);
+app.use(notFound);
 
 
 export default app;

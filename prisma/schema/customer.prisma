@@ -1,10 +1,14 @@
 model Customer {
-  id String @id @default(uuid())
-
+  id     String @id @default(uuid())
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   customerType CustomerType @default(INDIVIDUAL)
+
+  defaultAddressLine String?
+  defaultDistrict    String?
+  defaultThana       String?
+  defaultPostalCode  String?
 
   isDeleted Boolean   @default(false)
   deletedAt DateTime?

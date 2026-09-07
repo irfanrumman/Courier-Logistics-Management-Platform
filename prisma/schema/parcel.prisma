@@ -1,0 +1,22 @@
+model Parcel {
+  id String @id @default(uuid())
+
+  shipmentId String
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  description   String
+  category      String?
+  quantity      Int      @default(1)
+  weightKg      Decimal  @db.Decimal(8, 2)
+  declaredValue Decimal? @db.Decimal(10, 2)
+  isFragile     Boolean  @default(false)
+
+  parcelImageUrl      String?
+  parcelImagePublicId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shipmentId], name: "idx_parcel_shipmentId")
+  @@map("parcels")
+}
