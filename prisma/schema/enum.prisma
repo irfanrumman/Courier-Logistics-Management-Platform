@@ -59,7 +59,7 @@ enum CourierManCurrentStatus {
 
 enum CustomerType {
   INDIVIDUAL
-  MARCHANT
+  MERCHANT
 }
 
 enum MerchantVerificationStatus {

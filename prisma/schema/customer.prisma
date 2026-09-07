@@ -1,5 +1,7 @@
 model Customer {
   id     String @id @default(uuid())
+   name      String
+  email     String       @unique
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 

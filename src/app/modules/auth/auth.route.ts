@@ -17,19 +17,21 @@ router.post(
 	validateRequest(UserValidation.customerEmailVerifyZodSchema),
 	AuthController.verifyCustomerEmail,
 );
-// router.post(
-// 	"/login",
-// 	validateRequest(UserValidation.LoginZodSchema),
-// 	AuthController.loginUser,
-// );
-// router.get(
-// 	"/me",
-// 	auth(Role.ADMIN, Role.CUSTOMER, Role.COURIER_MAN, Role.HUB_MANAGER, Role.SUPER_ADMIN),
-// 	// validateRequest
-// 	AuthController.getMe,
-// );
-// router.post("/refresh-token", AuthController.refreshToken);
-// router.post("/google", AuthController.googleLogin);
+router.post(
+	"/login",
+	validateRequest(UserValidation.LoginZodSchema),
+	AuthController.loginUser,
+);
+
+
+router.get(
+	"/me",
+	auth(Role.ADMIN, Role.CUSTOMER, Role.COURIER_MAN, Role.HUB_MANAGER, Role.SUPER_ADMIN),
+	
+	AuthController.getMe,
+);
+router.post("/refresh-token", AuthController.refreshToken);
+router.post("/google", AuthController.googleLogin);
 // router.post(
 // 	"/forgot-password",
 // 	validateRequest(UserValidation.ForgotPasswordZodSchema),
