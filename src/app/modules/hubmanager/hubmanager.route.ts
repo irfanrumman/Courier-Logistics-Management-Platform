@@ -1,0 +1,1 @@
+// hubManager/      → hub manager registration, profile, admin: verify/assign

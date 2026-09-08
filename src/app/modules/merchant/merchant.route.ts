@@ -1,0 +1,1 @@
+// merchant/        → merchant registration, profile, admin: verify/reject/list merchants

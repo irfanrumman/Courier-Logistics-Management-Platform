@@ -43,3 +43,6 @@ router.post(
 	AuthController.resetPassword,
 );
 export const AuthRoutes = router;
+
+
+//  auth/            → register (customer), login, refresh-token, OTP verify, logout

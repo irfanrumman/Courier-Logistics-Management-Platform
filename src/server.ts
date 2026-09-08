@@ -3,8 +3,6 @@ import config from "./app/config";
 import { transporter } from "./app/lib/nodemailer";
 import { prisma } from "./app/lib/prisma";
 // import { deleteUnverifiedDoctors } from "./app/lib/cron";
-// import { transporter } from "./app/lib/nodemailer";
-// import { prisma } from "./app/lib/prisma";
 import { redisClient } from "./app/lib/redis";
 // import {
 // 	seedSuperAdmin,

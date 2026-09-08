@@ -1,0 +1,1 @@
+//customer/        → profile (default address) update, shipment history, admin: list/view customers
