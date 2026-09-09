@@ -8,9 +8,12 @@ import helmet from "helmet";
 import { notFound } from "./app/middleware/notFound";
 import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { AuthRoutes } from "./app/modules/auth/auth.route";
+import rateLimit from "express-rate-limit";
+import { HubManagerRoutes } from "./app/modules/hubmanager/hubmanager.route";
 
 
 const app: Application = express();
+
 
 //security-related HTTP headers
 app.use(helmet());
@@ -22,6 +25,16 @@ app.use(
 	}),
 );
 
+app.use("/api", rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: {
+        success: false,
+        message: "Too many requests, please try again later",
+        errors: []
+    }
+})
+);
 // Enable URL-encoded form data parsing
 app.use(express.urlencoded({ extended: true }));
 
@@ -33,6 +46,7 @@ app.use(cookieParser());
 
 //API
 app.use("/api/v1/auth", AuthRoutes);
+app.use("/api/v1/hub-manager", HubManagerRoutes);
 
 
 

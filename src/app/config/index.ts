@@ -22,4 +22,7 @@ node_env: process.env.NODE_ENV,
 	stmp_user: process.env.STMP_USER!,
 	stmp_password: process.env.STMP_PASSWORD!,
 	email_sender: process.env.EMAIL_SENDER!,
+	cloudinary_cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+	cloudinary_api_key: process.env.CLOUDINARY_API_KEY!,
+	cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET!,
 }

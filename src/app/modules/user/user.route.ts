@@ -16,4 +16,4 @@ router.patch(
 export const UserRoutes = router;
 
 
-//  user/            → getMe, admin: list/ban/unban users (role-agnostic core identity)
+//  user/            → getMe,

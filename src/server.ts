@@ -1,5 +1,6 @@
 import app from "./app";
 import config from "./app/config";
+import { deleteUnverifiedHubManagers } from "./app/lib/cron";
 import { transporter } from "./app/lib/nodemailer";
 import { prisma } from "./app/lib/prisma";
 // import { deleteUnverifiedDoctors } from "./app/lib/cron";
@@ -27,7 +28,7 @@ const main = async () => {
 		// await seedTesterAdmin();
 		// await seedTesterDoctor();
 
-		// await deleteUnverifiedDoctors();
+		await deleteUnverifiedHubManagers();
 
 		app.listen(PORT, () => {
 			console.log(`Server is running on port ${PORT}`);
