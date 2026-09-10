@@ -42,6 +42,12 @@ router.post(
 	validateRequest(UserValidation.ResetPasswordZodSchema),
 	AuthController.resetPassword,
 );
+
+// router.post(
+// 	"/logout",
+// 	auth(Role.ADMIN, Role.CUSTOMER, Role.COURIER_MAN, Role.HUB_MANAGER, Role.SUPER_ADMIN),
+// 	AuthController.logoutUser,
+// );
 export const AuthRoutes = router;
 
 

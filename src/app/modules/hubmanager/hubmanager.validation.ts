@@ -20,14 +20,14 @@ import { z } from "zod";
 const hubManagerEmailVerifyZodSchema = z.object({
 	email: z.email("Invalid email address").trim().toLowerCase(),
 	otp: z.string().length(6),
-    password: z
-		.string()
-		.min(8, "Password Must Minimum 8 Characters Long.")
-		.regex(/[a-z]/, "Password must contain atleast 1 Lowercase Letter")
-		.regex(/[A-Z]/, "Password must contain atleast 1 Uppercase Letter")
+    // password: z
+	// 	.string()
+	// 	.min(8, "Password Must Minimum 8 Characters Long.")
+	// 	.regex(/[a-z]/, "Password must contain atleast 1 Lowercase Letter")
+	// 	.regex(/[A-Z]/, "Password must contain atleast 1 Uppercase Letter")
 
-		.regex(/[0-9]/, "Password must contain atleast 1 Number")
-		.regex(/[^A-Za-z0-9]/, "Password must contain atleast 1 Special Character"),
+	// 	.regex(/[0-9]/, "Password must contain atleast 1 Number")
+	// 	.regex(/[^A-Za-z0-9]/, "Password must contain atleast 1 Special Character"),
 });
 
 
