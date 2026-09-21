@@ -6,6 +6,7 @@ import { validateRequest } from "../../middleware/validateRequest";
 // import { validateRequest } from "../../middleware/valideRequest";
 
 // import { UpdateDoctorProfileValidationZodSchema } from "./doctor.validation";
+
 import { hubManagerValidation } from "./hubmanager.validation";
 import { HubManagerController } from "./hubmanager.controller";
 import { parseFormDataJson } from "../../middleware/parseFormDataJson";
@@ -35,43 +36,49 @@ router.post(
 );
 
 router.post(
-	"/apply-as-doctor/verify-email",
+	"/verify-email",
     validateRequest(hubManagerValidation.hubManagerEmailVerifyZodSchema),
 	HubManagerController.verifyHubManagerEmail,
 );
-// router.post(
-// 	"/approve-doctor",
-// 	auth(Role.ADMIN, Role.SUPER_ADMIN),
-// 	DoctorController.approveDoctor,
-// );
-// router.get(
-// 	"/all-doctors",
-// 	auth(Role.ADMIN, Role.SUPER_ADMIN),
-// 	DoctorController.getAllDoctors,
-// );
 
-// router.patch(
-// 	"/update-my-profile",
-// 	auth(Role.DOCTOR),
-// 	validateRequest(UpdateDoctorProfileValidationZodSchema),
-// 	DoctorController.updateDoctorProfile,
-// );
+router.post(
+	"/approve-hub-manager",
+	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	HubManagerController.approveHubManager,
+);
 
-// // Public doctor-discovery routes (no auth) — meant for patients browsing before login.
-// router.get(
-// 	"/public/available-today",
-// 	DoctorController.getAvailableDoctorByTodaysSchedule,
-// );
+router.get(
+	"/all-hub-managers",
+	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	HubManagerController.getAllHubManagers,
+);
 
-// router.get(
-// 	"/public/all-doctors",
-// 	DoctorController.getAllDoctorsListPublic,
-// );
+router.patch(
+	"/update-my-profile",
+	auth(Role.HUB_MANAGER),
+	validateRequest(hubManagerValidation.UpdateHubManagerProfileValidationZodSchema),
+	HubManagerController.updateHubManagerProfile,
+);
 
-// router.get(
-// 	"/public/:doctorId",
-// 	DoctorController.getSingleDoctorPublicProfile,
-// );
+
+router.get(
+	"/single-hub-manager/:hubManagerId",
+	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	HubManagerController.getSingleHubManagerById,
+);
+
+router.patch(
+  "/update-hub-manager/:hubManagerId",
+  auth(Role.ADMIN, Role.SUPER_ADMIN),
+  validateRequest(hubManagerValidation.adminUpdateHubManagerZodSchema),
+  HubManagerController.adminUpdateHubManager,
+);
+
+router.delete(
+  "/delete/:hubManagerId",
+  auth(Role.ADMIN, Role.SUPER_ADMIN),
+  HubManagerController.deleteHubManager,
+);
 
 export const HubManagerRoutes = router;
 

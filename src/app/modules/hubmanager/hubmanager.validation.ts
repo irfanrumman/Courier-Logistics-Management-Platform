@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { Gender, HubManagerStatus } from "../../../generated/prisma/enums";
 
  const applyAsHubManagerZodSchema = z.object({
   user: z.object({
     name: z.string().trim().min(2, "Name must be at least 2 characters long"),
     email: z.email("Invalid email address").trim().toLowerCase(),
     phone: z.string().trim().optional(),
-    gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+    gender: z.enum(Gender).optional(),
   }),
   hubManager: z.object({
     bio: z.string().trim().max(1000, "Bio cannot exceed 1000 characters").optional(),
@@ -31,36 +32,45 @@ const hubManagerEmailVerifyZodSchema = z.object({
 });
 
 
+const UpdateHubManagerProfileValidationZodSchema = z.object({
+  user: z
+    .object({
+      name: z.string().trim().min(2, "Name must be at least 2 characters long").optional(),
+      phone: z.string().trim().optional(),
+      gender: z.enum(Gender).optional(),
+    })
+    .optional(),
 
-export const UpdateHubManagerProfileValidationZodSchema = z.object({
-	address: z
-		.string()
-		.trim()
-		.min(5, "Address must be at least 5 characters long")
-		.optional(),
-
-	bio: z
-		.string()
-		.trim()
-		.max(1000, "Bio cannot exceed 1000 characters")
-		.optional(),
-
-	consultationFee: z
-		.number()
-		.min(0, "Consultation fee cannot be negative")
-		.optional(),
-
-	contactNumber: z
-		.string()
-		.trim()
-		.min(5, "Contact number is invalid")
-		.optional(),
+  hubManager: z
+    .object({
+      bio: z.string().trim().max(1000, "Bio cannot exceed 1000 characters").optional(),
+      qualifications: z
+        .string()
+        .trim()
+        .min(2, "Qualifications must be at least 2 characters")
+        .optional(),
+      experienceYears: z
+        .number()
+        .int("Experience years must be an integer")
+        .min(0, "Experience years cannot be negative")
+        .optional(),
+    })
+    .optional(),
 });
 
+export const adminUpdateHubManagerZodSchema = z.object({
+  hubId: z.string().uuid("Invalid hub ID").optional(),
+  status: z.enum(HubManagerStatus).optional(),
+});
+
+
+export type IAdminUpdateHubManagerPayload = z.infer<typeof adminUpdateHubManagerZodSchema>;
 export type IApplyAsHubManagerPayload = z.infer<typeof applyAsHubManagerZodSchema>;
 export type IHubManagerEmailVerifyPayload = z.infer<typeof hubManagerEmailVerifyZodSchema>;
 
 export const hubManagerValidation = {
 applyAsHubManagerZodSchema,
 hubManagerEmailVerifyZodSchema,
+UpdateHubManagerProfileValidationZodSchema,
+adminUpdateHubManagerZodSchema
 }

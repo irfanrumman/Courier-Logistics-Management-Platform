@@ -1,7 +1,7 @@
  import crypto from "crypto";
 
  
- export const generateTemporaryPassword = (): string => {
+ export const generateSystemPassword = (): string => {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lower = "abcdefghijkmnpqrstuvwxyz";
   const digits = "23456789";

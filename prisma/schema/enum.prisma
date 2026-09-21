@@ -80,6 +80,12 @@ enum HubManagerVerificationStatus {
   REJECTED
 }
 
+enum ShiftStatusForHubManager {
+  MORNING
+  EVENING
+  NIGHT
+}
+
 enum CourierType {
   HUB_TRANSFER
   LAST_MILE

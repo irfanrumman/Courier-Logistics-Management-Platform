@@ -3,13 +3,10 @@
 model HubManager {
   id String @id @default(uuid())
 
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  hubId String? @unique
-  hub   Hub?    @relation(fields: [hubId], references: [id], onDelete: SetNull)
 
   employeeId String? @unique
+  shift      ShiftStatusForHubManager?
 
   bio             String?
   qualifications  String?
@@ -27,6 +24,12 @@ model HubManager {
 
   isDeleted Boolean   @default(false)
   deletedAt DateTime?
+
+    userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  hubId String? 
+  hub   Hub?    @relation(fields: [hubId], references: [id], onDelete: SetNull)
 
   joinedAt  DateTime @default(now())
   createdAt DateTime @default(now())

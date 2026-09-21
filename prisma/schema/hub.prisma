@@ -3,17 +3,19 @@ model Hub {
   name         String
   code         String   @unique
   address      String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  
 
   zoneId       String
   zone         Zone     @relation(fields: [zoneId], references: [id], onDelete: Restrict)
 
   courierMans      CourierMan[]
-  hubManager       HubManager?
+  hubManagers       HubManager[]
 
   shipmentsAsOrigin      Shipment[] @relation("ShipmentOrigin")
   shipmentsAsDestination Shipment[] @relation("ShipmentDestination")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("hubs")
 }

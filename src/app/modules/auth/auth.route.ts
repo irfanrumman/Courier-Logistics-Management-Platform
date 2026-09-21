@@ -51,4 +51,4 @@ router.post(
 export const AuthRoutes = router;
 
 
-//  auth/            → register (customer), login, refresh-token, OTP verify, logout
+//  auth/            → register (customer), login, refresh-token, OTP verify, logout, changePassword, 

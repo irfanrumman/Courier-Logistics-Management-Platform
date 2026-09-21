@@ -1,24 +1,24 @@
 import bcrypt from "bcryptjs";
 import type { UploadApiResponse } from "cloudinary";
 import crypto from "crypto";
-// import { addDays, startOfDay } from "date-fns";
 import ejs from "ejs";
 import httpStatus from "http-status";
 import path from "path";
-// import { DoctorVerificationStatus, Role, ScheduleStatus } from "../../../generated/prisma/enums";
-// import { DoctorWhereInput } from "../../../generated/prisma/models";
 import config from "../../config";
-// import { IQuery } from "../../interfaces";
+import { IQuery } from "../../interfaces";
 import { cloudinary } from "../../lib/cloudinary";
 import { transporter } from "../../lib/nodemailer";
 import { prisma } from "../../lib/prisma";
 import { redisClient } from "../../lib/redis";
 import { RequestUser } from "../../middleware/checkAuth";
 import { AppError } from "../../utils/AppError";
-import { Role } from "../../../generated/prisma/enums";
-import { generateTemporaryPassword } from "../../utils/generateTemporaryPassowrd";
-import { IApplyAsHubManagerPayload, IHubManagerEmailVerifyPayload } from "./hubmanager.validation";
-// import { IApplyAsDoctorPayload, IApproveDoctorPayload, IUpdateDoctorProfilePayload, IVerifyDoctorEmailPayload } from "./doctor.interface";
+import { HubManagerVerificationStatus, Role } from "../../../generated/prisma/enums";
+import { generateSystemPassword } from "../../utils/generateSystemPassword";
+import { IAdminUpdateHubManagerPayload, IApplyAsHubManagerPayload, IHubManagerEmailVerifyPayload } from "./hubmanager.validation";
+import { IApproveHubManagerPayload, IUpdateHubManagerProfilePayload } from "./hubmanager.intreface";
+import { HubManagerWhereInput } from "../../../generated/prisma/models";
+import {generateEmployeeId} from "../../utils/generateEmployeeId";
+
 
 
 
@@ -68,7 +68,7 @@ import { IApplyAsHubManagerPayload, IHubManagerEmailVerifyPayload } from "./hubm
     },
   );
 
-//   console.log("resume upload result:",{ resumeUploadResult });
+
 
   const additionalFilesUploadResults = await Promise.all(
     additionalFiles.map((file) => {
@@ -96,24 +96,13 @@ import { IApplyAsHubManagerPayload, IHubManagerEmailVerifyPayload } from "./hubm
     }),
   );
 
-//   console.log("additional files: ",{ additionalFilesUploadResults });
-
-  const randomPassword = generateTemporaryPassword();
-
-  const hashedPassword = await bcrypt.hash(
-    randomPassword,
-    Number(config.bcrypt_salt_rounds),
-  );
-
   const hubManagerApplication = await prisma.user.create({
     data: {
       name: payload.user.name,
       email: payload.user.email,
       phone: payload.user.phone,
       gender: payload.user.gender,
-      password: hashedPassword,
       role: Role.HUB_MANAGER,
-      needPasswordChange: true,
       hubManager: {
         create: {
           bio: payload.hubManager.bio,
@@ -131,9 +120,6 @@ import { IApplyAsHubManagerPayload, IHubManagerEmailVerifyPayload } from "./hubm
 
     include: {
       hubManager: true,
-    },
-    omit: {
-      password: true,
     },
   });
 
@@ -164,28 +150,14 @@ import { IApplyAsHubManagerPayload, IHubManagerEmailVerifyPayload } from "./hubm
   const html = await ejs.renderFile(tempatePath, templateData);
 
   await transporter.sendMail({
-    from: config.email_sender,
+    from: {
+        name: "Courier & Logistics Management",
+        address: config.email_sender,
+      },
     to: payload.user.email,
     subject: "Hub Manager Application - Email Verification",
     html,
   });
-
-//   const passwordTemplatePath = path.join(
-//     process.cwd(),
-//     "src/app/templates/temporary-password.ejs",
-//   );
-
-//   const passwordHtml = await ejs.renderFile(passwordTemplatePath, {
-//     name: payload.user.name,
-//     temporaryPassword,
-//   });
-
-//   await transporter.sendMail({
-//     from: config.email_sender,
-//     to: payload.user.email,
-//     subject: "Your Temporary Password - Hub Manager Application",
-//     html: passwordHtml,
-//   });
 
   return hubManagerApplication;
 };
@@ -238,433 +210,459 @@ const verifyHubManagerEmail = async (payload : IHubManagerEmailVerifyPayload) =>
 
 }
 
-// const approveDoctor = async (payload : IApproveDoctorPayload, reviewer : RequestUser) => {
-// 	const { doctorId, verificationStatus, rejectionReason } = payload;
+const approveHubManager = async (payload : IApproveHubManagerPayload, reviewer : RequestUser) => {
+	const { hubManagerId, verificationStatus, rejectionReason } = payload;
 
-// 	const existingDoctor = await prisma.doctor.findUnique({
-// 		where: { id: doctorId },
-// 		include: { user: true },
-// 	});
+	const existingHubManager = await prisma.hubManager.findUnique({
+		where: { id: hubManagerId },
+		include: { user: true },
+	});
 
-// 	if (!existingDoctor) {
-// 		throw new AppError(httpStatus.NOT_FOUND, "Doctor Application Not Found");
-// 	}
+	if (!existingHubManager) {
+		throw new AppError(httpStatus.NOT_FOUND, "Hub Manager Application Not Found");
+	}
 
-// 	if (existingDoctor.isDeleted) {
-// 		throw new AppError(httpStatus.GONE, "Doctor Application Has Been Deleted");
-// 	}
+	if (existingHubManager.isDeleted) {
+		throw new AppError(httpStatus.GONE, "Hub Manager Application Has Been Deleted");
+	}
 
-// 	if (!existingDoctor.user.emailVerified) {
-// 		throw new AppError(
-// 			httpStatus.BAD_REQUEST,
-// 			"Doctor Has Not Verified Their Email Yet. Application Cannot Be Reviewed.",
-// 		);
-// 	}
+	if (!existingHubManager.user.emailVerified) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Hub Manager Has Not Verified Their Email Yet. Application Cannot Be Reviewed.",
+		);
+	}
 
-// 	if (existingDoctor.verificationStatus !== DoctorVerificationStatus.PENDING) {
-// 		throw new AppError(
-// 			httpStatus.CONFLICT,
-// 			`Doctor Application Has Already Been ${existingDoctor.verificationStatus.toLowerCase()}`,
-// 		);
-// 	}
+	if (existingHubManager.verificationStatus !== HubManagerVerificationStatus.PENDING) {
+		throw new AppError(
+			httpStatus.CONFLICT,
+			`Hub Manager Application Has Already Been ${existingHubManager.verificationStatus.toLowerCase()}`,
+		);
+	}
 
-// 	if (
-// 		verificationStatus === DoctorVerificationStatus.REJECTED &&
-	/*	!rejectionReason
-// 	) {
-// 		throw new AppError(
-// 			httpStatus.BAD_REQUEST,
-// 			"Rejection Reason Is Required When Rejecting A Doctor Application",
-// 		);
-// 	}
+	if (
+		verificationStatus === HubManagerVerificationStatus.REJECTED &&
+		!rejectionReason
+ 	) {
+ 		throw new AppError(
+ 			httpStatus.BAD_REQUEST,
+ 			"Rejection Reason Is Required When Rejecting A Hub Manager Application",
+ 		);
+ 	}
 
-// 	const updatedDoctor = await prisma.doctor.update({
-// 		where: { id: doctorId },
-// 		data: {
-// 			verificationStatus,
-// 			rejectionReason:
-// 				verificationStatus === DoctorVerificationStatus.REJECTED
+  const isApproved = verificationStatus === HubManagerVerificationStatus.APPROVED;
+
+  let randomPassword: string | null = null;
+  if (isApproved) {
+    randomPassword = generateSystemPassword();
+    const hashedPassword = await bcrypt.hash(randomPassword, Number(config.bcrypt_salt_rounds));
+
+    await prisma.user.update({
+      where: { id: existingHubManager.userId },
+      data: { password: hashedPassword, needPasswordChange: true },
+    });
+  }
+
+let employeeId: string | undefined = undefined;
+if (isApproved) {
+  employeeId = await generateEmployeeId(existingHubManager.hubId);
+}
+
+ 	const updatedHubManager = await prisma.hubManager.update({
+ 		where: { id: hubManagerId },
+ 		data: {
+ 			verificationStatus,
+ 			rejectionReason:
+ 				verificationStatus === HubManagerVerificationStatus.REJECTED
 				? rejectionReason
-// 					: null,
-// 			reviewedBy: reviewer.userId,
-// 			reviewedAt: new Date(),
-// 		},
-// 	});
-
-// 	const isApproved = verificationStatus === DoctorVerificationStatus.APPROVED;
-
-// 	const tempatePath = path.join(
-// 		process.cwd(),
-// 		`src/app/templates/${isApproved
-		? "doctor-application-approved.ejs"
-// 			: "doctor-application-rejected.ejs"
-// 		}`,
-// 	);
-
-// 	const templateData = {
-// 		name: updatedDoctor.name,
-// 		reason: updatedDoctor.rejectionReason,
-// 	};
-
-
-// 	const html = await ejs.renderFile(tempatePath, templateData);
-
-// 	await transporter.sendMail({
-// 		from: config.email_sender,
-// 		to: updatedDoctor.email,
-// 		subject: isApproved
-			? "Your Doctor Application Has Been Approved"
-// 			: "Your Doctor Application Has Been Rejected",
-// 		html,
-// 	});
-
-// 	return updatedDoctor
-
-
-
-// }
-
-// const getAllDoctors = async (query: IQuery) => {
-
-// 	const limit = query.limit ? Number(query.limit) : 10;
-// 	const page = query.page ? Number(query.page) : 1;
-// 	const skip = (page - 1) * limit;
-// 	const sortBy = query.sortBy ? query.sortBy : "createdAt";
-// 	const sortOrder = query.sortOrder ? query.sortOrder : "desc"
-
-// 	const andConditions: DoctorWhereInput[] = []
-
-// 	//Searching
-// 	if (query.searchTerm) {
-// 		andConditions.push({
-// 			OR: [
-// 				{ name: { contains: query.searchTerm, mode: "insensitive" } },
-// 				{ email: { contains: query.searchTerm, mode: "insensitive" } },
-// 				{
-// 					specialization: {
-// 						contains: query.searchTerm,
-// 						mode: "insensitive",
-// 					},
-// 				},
-// 				{
-// 					licenseNumber: {
-// 						contains: query.searchTerm,
-// 						mode: "insensitive",
-// 					},
-// 				},
-// 			],
-// 		});
-// 	}
-
-// 	//filtering
-// 	if (query.specialization) {
-// 		andConditions.push({
-// 			specialization: { equals: query.specialization, mode: "insensitive" },
-// 		});
-// 	}
-
-// 	if (query.email) {
-// 		andConditions.push({
-// 			email: { contains: query.email, mode: "insensitive" },
-// 		});
-// 	}
-
-// 	if (query.licenseNumber) {
-// 		andConditions.push({
-// 			licenseNumber: { equals: query.licenseNumber, mode: "insensitive" },
-// 		});
-// 	}
-
-// 	if (query.verificationStatus) {
-// 		andConditions.push({
-// 			verificationStatus: query.verificationStatus as DoctorVerificationStatus,
-// 		});
-// 	}
-
-// 	andConditions.push({ isDeleted: false });
-
-// 	const allDoctors = await prisma.doctor.findMany({
-// 		where : {
-// 			AND : andConditions.length > 0 ? andConditions : undefined
-// 		},
-
-// 		take: limit,
-// 		skip: skip,
-
-
-// 		orderBy: {
-// 			// sortBy : sortOrder
-// 			[sortBy]: sortOrder
-// 		},
-
-// 		include:{
-// 			user: {
-// 				omit:{
-// 					password: true
-// 				}
-// 			},
-
-// 			// schedules: true,
-// 			// appointments: true
-// 			// prescriptions: true
-// 		}
-
-// 	});
-
-// 	const totalDoctorCount = await prisma.doctor.count({
-// 		where: {
-// 			AND: andConditions
-// 		}
-// 	})
-
-// 	return {
-// 		data: allDoctors,
-// 		meta: {
-// 			page: page,
-// 			limit: limit,
-// 			total: totalDoctorCount,
-// 			totalPages: Math.ceil(totalDoctorCount / limit)
-// 		}
-// 	}
-// }
-
-// const updateDoctorProfile = async (payload : IUpdateDoctorProfilePayload, user : RequestUser) => {
-// 	const existingDoctor = await prisma.doctor.findUnique({
-// 		where: { userId: user.userId },
-// 	});
-
-// 	if (!existingDoctor) {
-// 		throw new AppError(httpStatus.NOT_FOUND, "Doctor Profile Not Found");
-// 	}
-
-// 	const updatedDoctor = await prisma.doctor.update({
-// 		where: { id: existingDoctor.id },
-// 		data: payload,
-// 	});
-
-// 	return updatedDoctor;
-
-// }
-
-// Fields safe to expose on the public (unauthenticated) doctor-discovery endpoints.
-// Deliberately excludes resume/additionalFiles, verification review metadata, and
-// anything relation/auth related (user, userId, isDeleted, deletedAt...).
-
-
-// const getAvailableDoctorByTodaysSchedule = async (query: IQuery) => {
-
-// 	const limit = query.limit ? Number(query.limit) : 10;
-// 	const page = query.page ? Number(query.page) : 1;
-// 	const skip = (page - 1) * limit;
-// 	const sortBy = query.sortBy ? query.sortBy : "createdAt";
-// 	const sortOrder = query.sortOrder ? query.sortOrder : "desc"
-
-// 	const now = new Date();
-// 	const startOfToday = startOfDay(now);
-// 	const startOfTomorrow = addDays(startOfToday, 1);
-
-	// A doctor is "available today" if they have at least one published,
-	// not-yet-started schedule today with open slots left.
-
-// 	const andConditions: DoctorWhereInput[] = [
-// 		{ isDeleted: false },
-// 		{ verificationStatus: DoctorVerificationStatus.APPROVED },
-// 		{
-// 			schedules: {
-// 				some: {
-// 					isDeleted: false,
-// 					status: ScheduleStatus.PUBLISHED,
-// 					availableSlots: { gt: 0 },
-// 					startDateTime: {
-// 						gte: startOfToday,
-// 						lt: startOfTomorrow,
-// 						gt: now,
-// 					},
-// 				} } },
-// 	];
-
-// 	if (query.searchTerm) {
-// 		andConditions.push({
-// 			OR: [
-// 				{ name: { contains: query.searchTerm, mode: "insensitive" } },
-// 				{ specialization: { contains: query.searchTerm, mode: "insensitive" } },
-// 			],
-// 		});
-// 	}
-
-// 	if (query.specialization) {
-// 		andConditions.push({
-// 			specialization: { equals: query.specialization, mode: "insensitive" },
-// 		});
-// 	}
-
-// 	const availableDoctors = await prisma.doctor.findMany({
-// 		where: {
-// 			AND: andConditions,
-// 		},
-
-// 		take: limit,
-// 		skip,
-
-// 		orderBy: {
-// 			[sortBy]: sortOrder,
-// 		},
-
-// 		select: {
-// 			id: true,
-// 			name: true,
-// 			specialization: true,
-// 			licenseNumber: true,
-// 			qualifications: true,
-// 			experienceYears: true,
-// 			bio: true,
-// 			consultationFee: true,
-// 			createdAt: true,
-// 			schedules: {
-// 				where: {
-// 					isDeleted: false,
-// 					status: ScheduleStatus.PUBLISHED,
-// 					availableSlots: { gt: 0 },
-// 					startDateTime: {
-// 						gte: startOfToday,
-// 						lt: startOfTomorrow,
-// 						gt: now,
-// 					},
-// 				},
-// 				orderBy: { [sortBy] : sortOrder },
-// 				select: {
-// 					id: true,
-// 					startDateTime: true,
-// 					endDateTime: true,
-// 					availableSlots: true,
-// 					totalSlots: true,
-// 				},
-// 			},
-// 		},
-// 	});
-
-// 	const totalAvailableDoctorCount = await prisma.doctor.count({
-// 		where: { AND: andConditions },
-// 	});
-
-// 	return {
-// 		data: availableDoctors,
-// 		meta: {
-// 			page,
-// 			limit,
-// 			total: totalAvailableDoctorCount,
-// 			totalPages: Math.ceil(totalAvailableDoctorCount / limit),
-// 		},
-// 	};
-// }
-
-// const getAllDoctorsListPublic = async (query: IQuery) => {
-
-// 	const limit = query.limit ? Number(query.limit) : 10;
-// 	const page = query.page ? Number(query.page) : 1;
-// 	const skip = (page - 1) * limit;
-// 	const sortBy = query.sortBy ? query.sortBy : "createdAt";
-// 	const sortOrder = query.sortOrder ? query.sortOrder : "desc"
-
-// 	const andConditions: DoctorWhereInput[] = [
-// 		{ isDeleted: false },
-// 		{ verificationStatus: DoctorVerificationStatus.APPROVED },
-// 	];
-
-// 	if (query.searchTerm) {
-// 		andConditions.push({
-// 			OR: [
-// 				{ name: { contains: query.searchTerm, mode: "insensitive" } },
-// 				{ specialization: { contains: query.searchTerm, mode: "insensitive" } },
-// 				{ qualifications: { contains: query.searchTerm, mode: "insensitive" } },
-// 			],
-// 		});
-// 	}
-
-// 	if (query.specialization) {
-// 		andConditions.push({
-// 			specialization: { equals: query.specialization, mode: "insensitive" },
-// 		});
-// 	}
-
-// 	const allDoctors = await prisma.doctor.findMany({
-// 		where: {
-// 			AND: andConditions,
-// 		},
-
-// 		take: limit,
-// 		skip,
-
-// 		orderBy: {
-// 			[sortBy]: sortOrder,
-// 		},
-
-// 		select: {
-// 			id: true,
-// 			name: true,
-// 			specialization: true,
-// 			licenseNumber: true,
-// 			qualifications: true,
-// 			experienceYears: true,
-// 			bio: true,
-// 			consultationFee: true,
-// 			createdAt: true,
-// 		},
-// 	});
-
-// 	const totalDoctorCount = await prisma.doctor.count({
-// 		where: { AND: andConditions },
-// 	});
-
-// 	return {
-// 		data: allDoctors,
-// 		meta: {
-// 			page,
-// 			limit,
-// 			total: totalDoctorCount,
-// 			totalPages: Math.ceil(totalDoctorCount / limit),
-// 		},
-// 	};
-// }
-
-// const getSingleDoctorPublicProfile = async (doctorId: string) => {
-
-// 	const doctor = await prisma.doctor.findUnique({
-// 		where: {
-// 			id: doctorId,
-// 			isDeleted: false,
-// 			verificationStatus: DoctorVerificationStatus.APPROVED,
-// 		},
-// 		select: {
-// 			id: true,
-// 			name: true,
-// 			specialization: true,
-// 			licenseNumber: true,
-// 			qualifications: true,
-// 			experienceYears: true,
-// 			bio: true,
-// 			consultationFee: true,
-// 			createdAt: true,
-// 		},
-// 	});
-
-// 	if (!doctor) {
-// 		throw new AppError(httpStatus.NOT_FOUND, "Doctor Not Found");
-// 	}
-
-// 	return doctor;
-// }
-
-
-*/
+ 					: null,
+ 			reviewedBy: reviewer.userId,
+ 			reviewedAt: new Date(),
+      employeeId,
+ 		},
+      include: {
+        user: {
+           omit: {
+         password: true,
+            },
+        
+        },
+       hub: true,
+      },
+ 	});
+
+
+ 	const tempatePath = path.join(
+ 		process.cwd(),
+ 		`src/app/templates/${isApproved
+		? "hubManager-application-approved.ejs"
+ 			: "hubManager-application-rejected.ejs"
+ 		}`,
+ 	);
+
+ 	const templateData = {
+ 		name: updatedHubManager.user.name,
+ 		reason: updatedHubManager.rejectionReason,
+ 	};
+
+
+ 	const html = await ejs.renderFile(tempatePath, templateData);
+
+	await transporter.sendMail({
+ 		from: {
+        name: "Courier & Logistics Management",
+        address: config.email_sender,
+      },
+ 		to: updatedHubManager.user.email,
+ 		subject: isApproved
+			? "Your Application Has Been Approved"
+			: "Your Application Has Been Rejected",
+		html,
+ 	});
+
+
+ if (isApproved && randomPassword) {
+    const passwordTemplatePath = path.join(
+      process.cwd(),
+      "src/app/templates/generated-password.ejs",
+    );
+
+    const passwordHtml = await ejs.renderFile(passwordTemplatePath, {
+      name: updatedHubManager.user.name,
+      password: randomPassword, 
+    });
+
+    await transporter.sendMail({
+      from: {
+        name: "Courier & Logistics Management",
+        address: config.email_sender,
+      },
+      to: updatedHubManager.user.email,
+      subject: "Your Password - Hub Manager Application",
+      html: passwordHtml,
+    });
+  }
+
+ 	return updatedHubManager
+
+ }
+
+
+
+const getAllHubManagers = async (query: IQuery) => {
+
+	const limit = query.limit ? Number(query.limit) : 10;
+	const page = query.page ? Number(query.page) : 1;
+	const skip = (page - 1) * limit;
+	const sortBy = query.sortBy ? query.sortBy : "createdAt";
+	const sortOrder = query.sortOrder ? query.sortOrder : "desc"
+
+	
+  const andConditions: HubManagerWhereInput[] = []
+
+	//Searching
+	if (query.searchTerm) {
+		andConditions.push({
+			OR: [
+			 { 
+        user:{ 
+          name: { 
+            contains: query.searchTerm, 
+             mode: "insensitive" 
+            }
+           } 
+          },
+        {
+           user: { 
+            email: { 
+              contains: query.searchTerm, 
+              mode: "insensitive" 
+            } 
+          } 
+        },
+        { 
+          qualifications: { 
+            contains: query.searchTerm, 
+            mode: "insensitive" 
+          } 
+        },
+        { 
+          employeeId: { 
+            contains: query.searchTerm, 
+            mode: "insensitive" 
+          } 
+        },
+         { 
+          hub: { 
+            name: { 
+              contains: query.searchTerm, 
+              mode: "insensitive" 
+            } 
+          } 
+        },   
+      { 
+        hub: { 
+          code: { 
+            contains: query.searchTerm, 
+            mode: "insensitive" 
+          } 
+        } 
+      },
+			],
+		});
+	}
+
+	//filtering
+
+  if (query.hubCode) {
+  andConditions.push({
+    hub: {
+       code: { 
+        contains: query.hubCode, 
+        mode: "insensitive" } },
+  });
+}
+
+if (query.hubName) {
+  andConditions.push({
+    hub: {
+      name: {                
+        contains: query.hubName,
+        mode: "insensitive",
+      },
+    },
+  });
+}
+	if (query.email) {
+		andConditions.push({
+      user: { 
+        email: { 
+          contains: query.email, 
+          mode: "insensitive" 
+        } 
+      },
+    });
+	}
+
+	
+	if (query.employeeId) {
+    andConditions.push({
+      employeeId: { equals: query.employeeId, mode: "insensitive" },
+    });
+  }
+
+    if (query.verificationStatus) {
+    andConditions.push({
+      verificationStatus: query.verificationStatus as HubManagerVerificationStatus,
+    });
+  }
+
+	andConditions.push({ isDeleted: false });
+
+	const allHubManagers = await prisma.hubManager.findMany({
+		where : {
+			AND : andConditions.length > 0 ? andConditions : undefined
+		},
+
+		take: limit,
+		skip: skip,
+
+
+		orderBy: {
+			[sortBy]: sortOrder
+		},
+
+		include:{
+			user: {
+				omit:{
+					password: true
+				}
+			},
+
+		 hub: true,
+		}
+
+	});
+
+	const totalHubManagerCount = await prisma.hubManager.count({
+		where: {
+			AND: andConditions
+		}
+	})
+
+	return {
+		data: allHubManagers,
+		meta: {
+			page: page,
+			limit: limit,
+			total: totalHubManagerCount,
+			totalPages: Math.ceil(totalHubManagerCount / limit)
+		}
+	}
+}
+
+const updateHubManagerProfile = async (payload : IUpdateHubManagerProfilePayload, user : RequestUser) => {
+
+	const existingHubManager = await prisma.hubManager.findUnique({
+		where: { userId: user.userId },
+	});
+
+	if (!existingHubManager) {
+		throw new AppError(httpStatus.NOT_FOUND, "Hub Manager Profile Not Found");
+	}
+
+   if (existingHubManager.isDeleted) {              
+    throw new AppError(httpStatus.GONE, "Hub Manager Profile Has Been Deleted");
+  }
+
+	const result = await prisma.$transaction(async (tx) => {
+
+    let updatedUser = null;
+    let updatedHubManager = null;
+
+    if (payload.user) {
+      const { name, phone, gender } = payload.user;
+
+      updatedUser = await tx.user.update({
+        where: { 
+          id: user.userId
+          },
+        data: {
+          name,
+          phone,
+          gender
+        },
+        omit: { password: true },
+      });
+    }
+
+    if (payload.hubManager) {
+      const { bio, qualifications, experienceYears } = payload.hubManager;
+
+      updatedHubManager = await tx.hubManager.update({
+        where: { userId: user.userId },
+        data: {
+          bio,
+          qualifications,
+          experienceYears,
+        },
+      });
+    }
+
+    return { 
+      user: updatedUser,
+      hubManager: updatedHubManager 
+    };
+  });
+
+  return result;
+
+}
+
+const getSingleHubManagerById = async (hubManagerId: string) => {
+
+  const hubManager = await prisma.hubManager.findUnique({
+    where: { id: hubManagerId },
+    include: {
+      user: { omit: { password: true } },
+      hub: true,
+    },
+  });
+
+  if (!hubManager) {
+    throw new AppError(httpStatus.NOT_FOUND, "Hub Manager Not Found");
+  }
+
+   if (hubManager.isDeleted) {                       
+    throw new AppError(httpStatus.GONE, "Hub Manager Has Been Deleted");
+  }
+
+  return hubManager;
+};
+
+const adminUpdateHubManager = async (
+  hubManagerId: string,
+  payload: IAdminUpdateHubManagerPayload,
+) => {
+  const existingHubManager = await prisma.hubManager.findUnique({
+    where: { id: hubManagerId },
+  });
+
+  if (!existingHubManager) {
+    throw new AppError(httpStatus.NOT_FOUND, "Hub Manager Not Found");
+  }
+
+  if (existingHubManager.isDeleted) {
+    throw new AppError(httpStatus.GONE, "Hub Manager Has Been Deleted");
+  }
+
+  if (payload.hubId) {
+    const { hubId } = payload;
+    const hub = await prisma.hub.findUnique({
+      where: { id:hubId },
+    });
+
+    if (!hub) {
+      throw new AppError(httpStatus.NOT_FOUND, "Hub Not Found");
+    }
+  }
+
+  const { hubId, status } = payload;
+  const updatedHubManager = await prisma.hubManager.update({
+    
+    where: { id: hubManagerId },
+    data: {
+      hubId: hubId,
+      status: status,
+    },
+    include: {
+      user: { omit: { password: true } },
+      hub: true,
+    },
+  });
+
+  return updatedHubManager;
+};
+
+const deleteHubManager = async (hubManagerId: string) => {
+
+  const existingHubManager = await prisma.hubManager.findUnique({
+    where: { id: hubManagerId },
+  });
+
+  if (!existingHubManager) {
+    throw new AppError(httpStatus.NOT_FOUND, "Hub Manager Not Found");
+  }
+
+  if (existingHubManager.isDeleted) {
+    throw new AppError(httpStatus.GONE, "Hub Manager Already Deleted");
+  }
+
+  const deletedHubManager = await prisma.hubManager.update({
+    where: { id: hubManagerId },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date(),
+    },
+    include: {
+      user: { omit: { password: true } },
+      hub: true,
+    },
+  });
+
+  return deletedHubManager;
+};
+
+
+
 export const HubManagerServices = {
 	applyAsHubManager,
-    verifyHubManagerEmail,
-// 	approveHubManager,
-// 	getAllHubManager,
-// 	updateHubManagerProfile,
-// 	getAvailableHubManagerByTodaysSchedule,
-// 	getAllHubManagerListPublic,
-// 	getSingleHubManagerPublicProfile
+  verifyHubManagerEmail,
+	approveHubManager,
+  getAllHubManagers,
+	updateHubManagerProfile,
+ getSingleHubManagerById,
+ adminUpdateHubManager,
+ deleteHubManager
 };
 

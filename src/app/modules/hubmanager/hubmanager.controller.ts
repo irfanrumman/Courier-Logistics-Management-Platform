@@ -1,13 +1,11 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status";
-import { AppError } from "../../utils/AppError";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { HubManagerServices } from "./hubmanager.service";
-// import { DoctorServices } from "./doctor.service";
-// import {
-// 	ApplyAsDoctorValidationZodSchema,
-// } from "./doctor.validation";
+import { HubManagerVerificationStatus } from "../../../generated/prisma/enums";
+
+
 
 const applyAsHubManager = catchAsync(async (req: Request, res: Response) => {
 
@@ -32,116 +30,120 @@ const applyAsHubManager = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 
+
 const verifyHubManagerEmail = catchAsync(async (req: Request, res: Response) => {
 	
 	const payload = req.body;
 
-	const result = await DoctorServices.verifyDoctorEmail(payload)
+	const result = await HubManagerServices.verifyHubManagerEmail(payload);
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
-		message: "Doctor Email Verified Successfully",
+		message: "Hub Manager Email Verified Successfully",
 		data: result,
 	});
 });
-// const approveDoctor = catchAsync(async (req: Request, res: Response) => {
+
+const approveHubManager = catchAsync(async (req: Request, res: Response) => {
 	
-// 	const payload = req.body;
-// 	const user = req.user!
+	const payload = req.body;
+	const user = req.user!
 
-// 	const result = await DoctorServices.approveDoctor(payload, user)
-// 	sendResponse(res, {
-// 		statusCode: httpStatus.OK,
-// 		success: true,
-// 		message: "Doctor Email Verified Successfully",
-// 		data: result,
-// 	});
-// });
-// const getAllDoctors = catchAsync(async (req: Request, res: Response) => {
-	
+	const result = await HubManagerServices.approveHubManager(payload, user);
+	 const isApproved = result.verificationStatus === HubManagerVerificationStatus.APPROVED;
 
-// 	const {data, meta} = await DoctorServices.getAllDoctors(req.query)
-// 	sendResponse(res, {
-// 		statusCode: httpStatus.OK,
-// 		success: true,
-// 		message: "Doctors Retrieved Successfully",
-// 		data: data,
-// 		meta : meta,
-// 	});
-// });
-// const updateDoctorProfile = catchAsync(
-// 	async (req: Request, res: Response) => {
-// 		const payload = req.body;
-// 		const user = req.user!;
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: isApproved
+      ? "Hub Manager application has been approved"
+      : "Hub Manager application has been rejected",
+		data: result,
+	});
+});
 
-// 		const result = await DoctorServices.updateDoctorProfile(payload, user);
-// 		sendResponse(res, {
-// 			statusCode: httpStatus.OK,
-// 			success: true,
-// 			message: "Doctor Profile Updated Successfully",
-// 			data: result,
-// 		});
-// 	},
-// );
-
-
-
-// const getAvailableDoctorByTodaysSchedule = catchAsync(
-// 	async (req: Request, res: Response) => {
+const getAllHubManagers = catchAsync(async (req: Request, res: Response) => {
 	
 
-// 		const { data, meta } = await DoctorServices.getAvailableDoctorByTodaysSchedule(
-// 			req.query
-// 		);
-// 		sendResponse(res, {
-// 			statusCode: httpStatus.OK,
-// 			success: true,
-// 			message: "Today's Available Doctors Retrieved Successfully",
-// 			data,
-// 			meta,
-// 		});
-// 	},
-// );
+	const {data, meta} = await HubManagerServices.getAllHubManagers(req.query)
 
-// const getAllDoctorsListPublic = catchAsync(async (req: Request, res: Response) => {
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: "Hub Managers Retrieved Successfully",
+		data: data,
+		meta : meta,
+	});
+});
+
+const updateHubManagerProfile = catchAsync(
+	async (req: Request, res: Response) => {
+		const payload = req.body;
+		const user = req.user!;
+
+		const result = await HubManagerServices.updateHubManagerProfile(payload, user);
+		sendResponse(res, {
+			statusCode: httpStatus.OK,
+			success: true,
+			message: "Hub Manager Profile Updated Successfully",
+			data: result,
+		});
+	},
+);
 
 
-// 	const { data, meta } = await DoctorServices.getAllDoctorsListPublic(
-// 		req.query
-// 	);
-// 	sendResponse(res, {
-// 		statusCode: httpStatus.OK,
-// 		success: true,
-// 		message: "Doctors Retrieved Successfully",
-// 		data,
-// 		meta,
-// 	});
-// });
+const getSingleHubManagerById = catchAsync(
+	async (req: Request, res: Response) => {
 
-// const getSingleDoctorPublicProfile = catchAsync(
-// 	async (req: Request, res: Response) => {
+		const hubManagerId = req.params.hubManagerId as string
 
-// 		const doctorId = req.params.doctorId as string
-		
-// 		const result = await DoctorServices.getSingleDoctorPublicProfile(
-// 			doctorId
-// 		);
-// 		sendResponse(res, {
-// 			statusCode: httpStatus.OK,
-// 			success: true,
-// 			message: "Doctor Profile Retrieved Successfully",
-// 			data: result,
-// 		});
-// 	},
-// );
+		const result = await HubManagerServices.getSingleHubManagerById(
+			hubManagerId
+		);
+		sendResponse(res, {
+			statusCode: httpStatus.OK,
+			success: true,
+			message: "Hub Manager Retrieved Successfully",
+			data: result,
+		});
+	},
+);
+
+const adminUpdateHubManager = catchAsync(async (req: Request, res: Response) => {
+  const hubManagerId = req.params.hubManagerId as string;
+  const payload = req.body;
+
+  const result = await HubManagerServices.adminUpdateHubManager(hubManagerId, payload);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Hub Manager Updated Successfully",
+    data: result,
+  });
+});
+
+
+const deleteHubManager = catchAsync(async (req: Request, res: Response) => {
+  const hubManagerId = req.params.hubManagerId as string;
+
+  const result = await HubManagerServices.deleteHubManager(hubManagerId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Hub Manager Deleted Successfully",
+    data: result,
+  });
+});
 
 export const HubManagerController = {
 	applyAsHubManager,
 	verifyHubManagerEmail,
-	// approveDoctor,
-	// getAllDoctors,
-	// updateDoctorProfile,
-	// getAvailableDoctorByTodaysSchedule,
-	// getAllDoctorsListPublic,
-	// getSingleDoctorPublicProfile,
+	approveHubManager,
+	getAllHubManagers,
+	updateHubManagerProfile,
+	getSingleHubManagerById,
+	adminUpdateHubManager,
+	deleteHubManager
 };

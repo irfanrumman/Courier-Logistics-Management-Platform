@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Application Approved</title>
+    <style>
+      body { font-family: Arial, sans-serif; background: #f7f7f7; color: #333; margin: 0; padding: 0; }
+      .container { max-width: 500px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+      .status-badge { display: inline-block; padding: 8px 20px; background: #d4edda; color: #155724; font-size: 16px; font-weight: bold; border: 1px dashed #c3e6cb; border-radius: 4px; margin-top: 20px; }
+      .footer { margin-top: 30px; font-size: 12px; color: #888; border-top: 1px solid #eee; padding-top: 15px; }
+      .note { color: #0f766e; font-weight: bold; margin-top: 15px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Hub Manager Application - Approved</h2>
+      <p>Hello <%= name %>,</p>
+      <p>Congratulations! Your application to become a Hub Manager has been reviewed and approved.</p>
+
+      <div class="status-badge">Application Approved</div>
+
+      <p class="note">Note: You will receive a separate email shortly with a system generated password to log in. You'll be asked to set a new password on your first login.</p>
+      <p>We're excited to have you on board. If you did not apply for this role, please contact support.</p>
+
+      <div class="footer">
+        &copy; Courier &amp; Logistics Management System. All rights reserved.
+      </div>
+    </div>
+  </body>
+</html>

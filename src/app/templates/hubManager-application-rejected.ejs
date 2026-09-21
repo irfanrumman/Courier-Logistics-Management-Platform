@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Application Update</title>
+    <style>
+      body { font-family: Arial, sans-serif; background: #f7f7f7; color: #333; margin: 0; padding: 0; }
+      .container { max-width: 500px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+      .status-badge { display: inline-block; padding: 8px 20px; background: #f8d7da; color: #721c24; font-size: 16px; font-weight: bold; border: 1px dashed #f5c6cb; border-radius: 4px; margin-top: 20px; }
+      .reason-box { margin-top: 15px; padding: 12px 16px; background: #f7f7f7; border-left: 3px solid #dc3545; color: #555; font-size: 14px; }
+      .footer { margin-top: 30px; font-size: 12px; color: #888; border-top: 1px solid #eee; padding-top: 15px; }
+      .note { color: #555; margin-top: 15px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Hub Manager Application - Update</h2>
+      <p>Hello <%= name %>,</p>
+      <p>Thank you for your interest in becoming a Hub Manager. After careful review, we regret to inform you that your application has not been approved at this time.</p>
+
+      <div class="status-badge">Application Rejected</div>
+
+      <div class="reason-box">
+        <strong>Reason:</strong> <%= reason %>
+      </div>
+
+      <p class="note">You are welcome to reapply in the future if your circumstances change. If you believe this decision was made in error, please contact support.</p>
+
+      <div class="footer">
+        &copy; Courier &amp; Logistics Management System. All rights reserved.
+      </div>
+    </div>
+  </body>
+</html>
