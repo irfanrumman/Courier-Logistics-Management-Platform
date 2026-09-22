@@ -15,6 +15,8 @@ import { ZoneRoutes } from "./app/modules/zone/zone.route";
 import { CourierManRoutes } from "./app/modules/courierman/courierman.route";
 import { MerchantRoutes } from "./app/modules/merchant/merchant.route";
 import { CustomerRoutes } from "./app/modules/customer/customer.route";
+import { ShipmentRoutes } from "./app/modules/shipment/shipment.route";
+import { PricingRuleRoutes } from "./app/modules/pricingrule/pricingrule.route";
 
 
 const app: Application = express();
@@ -57,6 +59,8 @@ app.use("/api/v1/zone", ZoneRoutes);
 app.use("/api/v1/courier-man", CourierManRoutes);
 app.use("/api/v1/merchant", MerchantRoutes);
 app.use("/api/v1/customer", CustomerRoutes);
+app.use("/api/v1/pricing-rule", PricingRuleRoutes);
+app.use("/api/v1/shipment", ShipmentRoutes);
 
 
 

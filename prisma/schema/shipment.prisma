@@ -37,6 +37,13 @@ model Shipment {
   paymentType     ShipmentPaymentType @default(PREPAID)
   codAmount       Decimal?            @db.Decimal(10, 2)
 
+  // ============ Delivery outcome tracking  ============
+  deliveryAttemptCount Int       @default(0) 
+  failureReason        String?   
+  deliveredAt          DateTime? 
+  returnedAt           DateTime? 
+ 
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
