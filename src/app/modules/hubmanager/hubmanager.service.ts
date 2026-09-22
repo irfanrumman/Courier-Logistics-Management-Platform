@@ -295,14 +295,15 @@ if (isApproved) {
  	const tempatePath = path.join(
  		process.cwd(),
  		`src/app/templates/${isApproved
-		? "hubManager-application-approved.ejs"
- 			: "hubManager-application-rejected.ejs"
+		? "application-approved.ejs"
+ 			: "application-rejected.ejs"
  		}`,
  	);
 
  	const templateData = {
  		name: updatedHubManager.user.name,
  		reason: updatedHubManager.rejectionReason,
+     roleName: "Hub Manager",
  	};
 
 

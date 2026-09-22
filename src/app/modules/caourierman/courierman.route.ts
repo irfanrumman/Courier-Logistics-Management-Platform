@@ -1,1 +1,0 @@
-// courierMan/      → courier registration, profile, availability toggle, admin: verify/assign

@@ -68,6 +68,12 @@ enum MerchantVerificationStatus {
   REJECTED
 }
 
+enum MerchantStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
 enum HubManagerStatus {
   ACTIVE
   ON_LEAVE

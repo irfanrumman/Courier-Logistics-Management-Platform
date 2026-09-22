@@ -12,6 +12,7 @@ import rateLimit from "express-rate-limit";
 import { HubManagerRoutes } from "./app/modules/hubmanager/hubmanager.route";
 import { HubRoutes } from "./app/modules/hub/hub.route";
 import { ZoneRoutes } from "./app/modules/zone/zone.route";
+import { CourierManRoutes } from "./app/modules/courierman/courierman.route";
 
 
 const app: Application = express();
@@ -51,6 +52,7 @@ app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/hub-manager", HubManagerRoutes);
 app.use("/api/v1/hub", HubRoutes);
 app.use("/api/v1/zone", ZoneRoutes);
+app.use("/api/v1/courier-man", CourierManRoutes);
 
 
 

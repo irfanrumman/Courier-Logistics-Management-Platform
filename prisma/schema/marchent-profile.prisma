@@ -6,20 +6,45 @@ model MerchantProfile {
   businessName    String
   ownerName       String
 
-  defaultPickupAddressLine String?
-  defaultPickupDistrict    String?
-  defaultPickupThana       String?
-  defaultPickupPostalCode  String?
+  PickupAddressLine String?
+  PickupDistrict    String?
+  PickupThana       String?
+  PickupPostalCode  String?
 
-  tradeLicenseNumber String?  @unique
+  tradeLicenseNumber String  @unique
   codLimit           Decimal  @default(5000.00) @db.Decimal(10, 2)
 
+  status MerchantStatus @default(ACTIVE) 
+
+
+  tradeLicenseImageUrl      String
+  tradeLicenseImagePublicId String
+
+  nidNumber             String @unique
+  nidFrontImageUrl      String
+  nidFrontImagePublicId String
+  nidBackImageUrl       String
+  nidBackImagePublicId  String
+
+  tinNumber         String @unique
+  tinImageUrl       String
+  tinImagePublicId  String
+
+  shopImageUrl      String?
+  shopImagePublicId String?
+
+
+
   verificationStatus MerchantVerificationStatus @default(UNVERIFIED)
+  rejectionReason    String?
   reviewedBy         String?
   reviewedAt         DateTime?
+
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("merchant_profiles")
-}
+} 
