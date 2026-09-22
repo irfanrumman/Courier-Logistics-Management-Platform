@@ -20,6 +20,13 @@ router.post(
   CourierManController.verifyCourierManEmail,
 );
 
+router.get(
+  "/my-profile",
+  auth(Role.COURIER_MAN),
+  CourierManController.getMyProfile,
+);
+
+
 // Admin-only
 router.post(
   "/approve-courier-man",

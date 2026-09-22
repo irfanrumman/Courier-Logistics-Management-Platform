@@ -47,6 +47,13 @@ router.post(
 	HubManagerController.approveHubManager,
 );
 
+
+router.get(
+  "/my-profile",
+  auth(Role.HUB_MANAGER),
+  HubManagerController.getMyProfile,
+);
+
 router.get(
 	"/all-hub-managers",
 	auth(Role.ADMIN, Role.SUPER_ADMIN),

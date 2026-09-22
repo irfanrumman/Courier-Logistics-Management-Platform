@@ -41,7 +41,7 @@ const registerMerchant = async (
     throw new AppError(httpStatus.CONFLICT, "User already exists with this email");
   }
 
-  // Unique fields — আগেভাগে ভালো error message দেওয়ার জন্য
+  
   const [existingLicense, existingNid, existingTin] = await Promise.all([
     prisma.merchantProfile.findUnique({
       where: { tradeLicenseNumber: payload.merchantProfile.tradeLicenseNumber },
