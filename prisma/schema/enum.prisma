@@ -2,6 +2,7 @@ enum Role {
   SUPER_ADMIN
   ADMIN
   CUSTOMER
+  MERCHANT
   COURIER_MAN
   HUB_MANAGER
 }
@@ -55,11 +56,6 @@ enum CourierManCurrentStatus {
     ACTIVE
     ON_LEAVE
     SUSPENDED
-}
-
-enum CustomerType {
-  INDIVIDUAL
-  MERCHANT
 }
 
 enum MerchantVerificationStatus {
