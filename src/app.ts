@@ -17,6 +17,8 @@ import { MerchantRoutes } from "./app/modules/merchant/merchant.route";
 import { CustomerRoutes } from "./app/modules/customer/customer.route";
 import { ShipmentRoutes } from "./app/modules/shipment/shipment.route";
 import { PricingRuleRoutes } from "./app/modules/pricingrule/pricingrule.route";
+import { PaymentRoutes } from "./app/modules/payment/payment.route";
+import { CodCollectionRoutes } from "./app/modules/codcollections/codcollection.route";
 
 
 const app: Application = express();
@@ -61,6 +63,8 @@ app.use("/api/v1/merchant", MerchantRoutes);
 app.use("/api/v1/customer", CustomerRoutes);
 app.use("/api/v1/pricing-rule", PricingRuleRoutes);
 app.use("/api/v1/shipment", ShipmentRoutes);
+app.use("/api/v1/payment", PaymentRoutes);
+app.use("/api/v1/codcollection", CodCollectionRoutes);
 
 
 

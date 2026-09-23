@@ -11,6 +11,8 @@ import {
   IAssignCourierPayload,
 } from "./shipment.validation";
 import { IQueryForShipment } from "./shipment.interface";
+import type { UploadApiResponse } from "cloudinary";
+import { cloudinary } from "../../lib/cloudinary";
 
 // Tracking number generate করার helper — human-readable, unique হওয়া দরকার
 // Format: CLM + বছর + ৮ hex character (random, collision practically অসম্ভব)
@@ -20,9 +22,42 @@ const generateTrackingNumber = (): string => {
   return `CLM-${year}-${random}`;
 };
 
+
 // Shipment এর কাজ যেসব status এ "শেষ" হয়ে যায় (courier আর দরকার নেই) —
 // এই status গুলোতে পৌঁছালে সংশ্লিষ্ট courier কে আবার available করে দিতে হবে
 const TERMINAL_STATUSES: ShipmentStatus[] = ["DELIVERED", "FAILED_DELIVERY", "RETURNED"];
+
+
+const recalculateShipmentWeightAndPrice = async (shipmentId: string) => {
+  const shipment = await prisma.shipment.findUniqueOrThrow({
+    where: { id: shipmentId },
+    include: { parcels: true, originHub: true, destinationHub: true },
+  });
+
+  // প্রতিটা parcel এর (weightKg * quantity) যোগফল — createShipment এ যেভাবে
+  // প্রথমবার হিসাব করা হয়েছিল, ঠিক সেই একই logic এখানে পুনরায় প্রয়োগ করা হচ্ছে
+  const newTotalWeightKg = shipment.parcels.reduce(
+    (sum, parcel) => sum + parcel.weightKg.toNumber() * parcel.quantity,
+    0,
+  );
+
+  // নতুন weight অনুযায়ী আবার PricingRule থেকে delivery charge বের করা হচ্ছে,
+  // কারণ weight bracket বদলে গেলে rate ও বদলে যেতে পারে
+  const newDeliveryCharge = await PricingRuleServices.calculatePrice(
+    shipment.originHub.zoneId,
+    shipment.destinationHub.zoneId,
+    newTotalWeightKg,
+  );
+
+  await prisma.shipment.update({
+    where: { id: shipmentId },
+    data: {
+      totalWeightKg: newTotalWeightKg,
+      deliveryCharge: newDeliveryCharge,
+    },
+  });
+};
+
 
 // ==========================================================
 // ১. Shipment তৈরি — Customer/Merchant দুজনেই ব্যবহার করবে
@@ -421,6 +456,185 @@ const assignCourier = async (
   return updatedShipment;
 };
 
+
+// একটা helper — shipment এর totalWeightKg সবসময় parcel গুলোর যোগফল অনুযায়ী
+// সঠিক থাকা উচিত, তাই parcel add/update/delete হলেই এই ফাংশন দিয়ে recalculate করবো
+
+
+// ==========================================================
+// ৮. নতুন parcel যোগ করা — শুধু PENDING status এ, sender নিজেই যোগ করবে (তাই senderId চেক করছি)
+// যোগ করার পর shipment এর totalWeightKg/deliveryCharge recalculate হচ্ছে
+// ==========================================================
+const addParcel = async (shipmentId: string, payload: IAddParcelPayload, user: RequestUser) => {
+  const shipment = await prisma.shipment.findUnique({ where: { id: shipmentId } });
+
+  if (!shipment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment Not Found");
+  }
+
+  // শুধু নিজের shipment এ parcel যোগ করতে পারবে (অন্য কারো shipment এ না)
+  if (shipment.senderId !== user.userId) {
+    throw new AppError(httpStatus.FORBIDDEN, "You Can Only Modify Your Own Shipments");
+  }
+
+  if (shipment.status !== "PENDING") {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "Parcels can only be added while the shipment is still PENDING",
+    );
+  }
+
+  const newParcel = await prisma.parcel.create({
+    data: {
+      shipmentId,
+      description: payload.description,
+      category: payload.category,
+      quantity: payload.quantity,
+      weightKg: payload.weightKg,
+      declaredValue: payload.declaredValue,
+      isFragile: payload.isFragile,
+    },
+  });
+
+  await recalculateShipmentWeightAndPrice(shipmentId);
+
+  return newParcel;
+};
+
+
+const updateParcel = async (
+  shipmentId: string,
+  parcelId: string,
+  payload: IUpdateParcelPayload,
+  user: RequestUser,
+  file: Express.Multer.File | null,
+) => {
+  const shipment = await prisma.shipment.findUnique({ where: { id: shipmentId } });
+
+  if (!shipment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment Not Found");
+  }
+
+  if (shipment.senderId !== user.userId) {
+    throw new AppError(httpStatus.FORBIDDEN, "You Can Only Modify Your Own Shipments");
+  }
+
+  if (shipment.status !== "PENDING") {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "Parcels can only be updated while the shipment is still PENDING",
+    );
+  }
+
+  const existingParcel = await prisma.parcel.findUnique({ where: { id: parcelId } });
+
+  if (!existingParcel || existingParcel.shipmentId !== shipmentId) {
+    throw new AppError(httpStatus.NOT_FOUND, "Parcel Not Found In This Shipment");
+  }
+
+  // ছবি upload করা হলে Cloudinary তে upload করে url/publicId বসাবো,
+  // hub manager এর resume upload এর মতোই inline Promise pattern
+  let imageUploadResult: { url?: string; publicId?: string } = {};
+
+  if (file) {
+    const uploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream(
+          { resource_type: "auto" },
+          async (error, result) => {
+            if (error) {
+              return reject(error);
+            }
+
+            if (!result) {
+              return reject(
+                new AppError(httpStatus.INTERNAL_SERVER_ERROR, "No result returned from Cloudinary"),
+              );
+            }
+
+            resolve(result);
+          },
+        )
+        .end(file.buffer);
+    });
+
+    imageUploadResult = { url: uploadResult.secure_url, publicId: uploadResult.public_id };
+
+    // পুরনো ছবি থাকলে Cloudinary থেকে delete করে দিচ্ছি, orphan file জমে থাকা এড়াতে
+    if (existingParcel.parcelImagePublicId) {
+      await cloudinary.uploader.destroy(existingParcel.parcelImagePublicId).catch(() => {
+        // Delete fail হলেও update আটকাচ্ছি না, শুধু silently ignore
+      });
+    }
+  }
+
+  const updatedParcel = await prisma.parcel.update({
+    where: { id: parcelId },
+    data: {
+      ...payload,
+      parcelImageUrl: imageUploadResult.url,
+      parcelImagePublicId: imageUploadResult.publicId,
+    },
+  });
+
+  // যদি weight/quantity বদলে থাকে, তাহলে shipment এর total recalculate করা দরকার
+  if (payload.weightKg !== undefined || payload.quantity !== undefined) {
+    await recalculateShipmentWeightAndPrice(shipmentId);
+  }
+
+  return updatedParcel;
+};
+
+// ==========================================================
+// ১০. Parcel মুছে ফেলা — শেষ parcel মুছতে দেওয়া হচ্ছে না (shipment এ অন্তত ১টা parcel থাকতেই হবে)
+// ==========================================================
+const deleteParcel = async (shipmentId: string, parcelId: string, user: RequestUser) => {
+  const shipment = await prisma.shipment.findUnique({
+    where: { id: shipmentId },
+    include: { parcels: true },
+  });
+
+  if (!shipment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Shipment Not Found");
+  }
+
+  if (shipment.senderId !== user.userId) {
+    throw new AppError(httpStatus.FORBIDDEN, "You Can Only Modify Your Own Shipments");
+  }
+
+  if (shipment.status !== "PENDING") {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "Parcels can only be removed while the shipment is still PENDING",
+    );
+  }
+
+  const existingParcel = shipment.parcels.find((p) => p.id === parcelId);
+
+  if (!existingParcel) {
+    throw new AppError(httpStatus.NOT_FOUND, "Parcel Not Found In This Shipment");
+  }
+
+  // shipment এ এই একটাই parcel থাকলে মুছতে দিচ্ছি না — shipment তো খালি থাকতে পারে না
+  if (shipment.parcels.length === 1) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Cannot delete the only parcel in a shipment. Delete the shipment instead.",
+    );
+  }
+
+  // Cloudinary তে ছবি থাকলে সেটাও clean up করছি
+  if (existingParcel.parcelImagePublicId) {
+    await cloudinary.uploader.destroy(existingParcel.parcelImagePublicId).catch(() => {});
+  }
+
+  await prisma.parcel.delete({ where: { id: parcelId } });
+
+  await recalculateShipmentWeightAndPrice(shipmentId);
+
+  return { message: "Parcel deleted successfully" };
+};
+
 export const ShipmentServices = {
   createShipment,
   getMyShipments,
@@ -429,4 +643,7 @@ export const ShipmentServices = {
   getAllShipments,
   updateShipmentStatus,
   assignCourier,
+   addParcel,      
+  updateParcel,   
+  deleteParcel, 
 };

@@ -91,6 +91,53 @@ const assignCourier = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+const addParcel = catchAsync(async (req: Request, res: Response) => {
+  const shipmentId = req.params.shipmentId as string;
+  const user = req.user!;
+  const result = await ShipmentServices.addParcel(shipmentId, req.body, user);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Parcel Added Successfully",
+    data: result,
+  });
+});
+
+const updateParcel = catchAsync(async (req: Request, res: Response) => {
+  const shipmentId = req.params.shipmentId as string;
+  const parcelId = req.params.parcelId as string;
+  const user = req.user!;
+
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  const parcelImage = files?.["parcelImage"]?.[0] ?? null;
+
+  const result = await ShipmentServices.updateParcel(shipmentId, parcelId, req.body, user, parcelImage);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Parcel Updated Successfully",
+    data: result,
+  });
+});
+
+const deleteParcel = catchAsync(async (req: Request, res: Response) => {
+  const shipmentId = req.params.shipmentId as string;
+  const parcelId = req.params.parcelId as string;
+  const user = req.user!;
+
+  const result = await ShipmentServices.deleteParcel(shipmentId, parcelId, user);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Parcel Deleted Successfully",
+    data: result,
+  });
+});
+
 export const ShipmentController = {
   createShipment,
   getMyShipments,
@@ -99,4 +146,7 @@ export const ShipmentController = {
   getAllShipments,
   updateShipmentStatus,
   assignCourier,
+   addParcel,     
+  updateParcel,   
+  deleteParcel,
 };

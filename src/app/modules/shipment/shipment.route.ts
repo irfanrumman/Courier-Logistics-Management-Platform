@@ -4,6 +4,8 @@ import { auth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
 import { shipmentValidation } from "./shipment.validation";
 import { ShipmentController } from "./shipment.controller";
+import { upload } from "../../lib/multer";
+import { parseFormDataJson } from "../../middleware/parseFormDataJson";
 
 const router = Router();
 
@@ -54,11 +56,28 @@ router.patch(
   ShipmentController.assignCourier,
 );
 
-// logic lagbe lekha
+router.post(
+  "/:shipmentId/parcels",
+  auth(Role.CUSTOMER),
+  validateRequest(shipmentValidation.addParcelZodSchema),
+  ShipmentController.addParcel,
+);
 
-router.post("/:shipmentId/parcels", ...);              // নতুন parcel যোগ
-router.patch("/:shipmentId/parcels/:parcelId", ...);    // parcel আপডেট (image upload সহ)
-router.delete("/:shipmentId/parcels/:parcelId", ...);   // parcel মুছে ফেলা
+// PATCH এ file upload থাকতে পারে (parcelImage), তাই multer + parseFormDataJson লাগবে
+router.patch(
+  "/:shipmentId/parcels/:parcelId",
+  auth(Role.CUSTOMER),
+  upload.fields([{ name: "parcelImage", maxCount: 1 }]),
+  parseFormDataJson,
+  validateRequest(shipmentValidation.updateParcelZodSchema),
+  ShipmentController.updateParcel,
+);
+
+router.delete(
+  "/:shipmentId/parcels/:parcelId",
+  auth(Role.CUSTOMER),
+  ShipmentController.deleteParcel,
+);
 
 
 

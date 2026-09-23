@@ -70,6 +70,31 @@ export const assignCourierZodSchema = z.object({
   assignmentType: z.enum(["TRANSFER", "LAST_MILE"]),
 });
 
+
+// আগের createShipmentZodSchema এর ভেতরের parcelZodSchema-ই এখানে reuse করা যায়,
+// কিন্তু single parcel add করার জন্য আলাদা schema (array না, single object)
+export const addParcelZodSchema = z.object({
+  description: z.string().trim().min(1, "Parcel description is required"),
+  category: z.string().trim().optional(),
+  quantity: z.number().int().positive().default(1),
+  weightKg: z.number().positive("Weight must be greater than 0"),
+  declaredValue: z.number().nonnegative().optional(),
+  isFragile: z.boolean().default(false),
+});
+
+// Update করার সময় সব field optional — partial update
+export const updateParcelZodSchema = z.object({
+  description: z.string().trim().min(1).optional(),
+  category: z.string().trim().optional(),
+  quantity: z.number().int().positive().optional(),
+  weightKg: z.number().positive().optional(),
+  declaredValue: z.number().nonnegative().optional(),
+  isFragile: z.boolean().optional(),
+});
+
+export type IAddParcelPayload = z.infer<typeof addParcelZodSchema>;
+export type IUpdateParcelPayload = z.infer<typeof updateParcelZodSchema>;
+
 export type ICreateShipmentPayload = z.infer<typeof createShipmentZodSchema>;
 export type IUpdateShipmentStatusPayload = z.infer<typeof updateShipmentStatusZodSchema>;
 export type IAssignCourierPayload = z.infer<typeof assignCourierZodSchema>;
@@ -78,4 +103,6 @@ export const shipmentValidation = {
   createShipmentZodSchema,
   updateShipmentStatusZodSchema,
   assignCourierZodSchema,
+    addParcelZodSchema,       
+  updateParcelZodSchema
 };
