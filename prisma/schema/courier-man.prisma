@@ -2,7 +2,7 @@ model CourierMan {
   id                 String   @id @default(uuid())
  
 
-  courierType        CourierType
+  courierManAssignType        CourierManAssignType
   vehicleType        String?
   vehicleNumber      String?  @unique
   licenseNumber      String?  @unique
@@ -37,7 +37,7 @@ model CourierMan {
   isDeleted          Boolean   @default(false)
   deletedAt          DateTime?
 
-   userId             String   @unique
+  userId             String   @unique
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt          DateTime @default(now())
@@ -45,7 +45,7 @@ model CourierMan {
 
   transferShipments  Shipment[] @relation("ShipmentTransferCourierMan")
   lastMileShipments  Shipment[] @relation("ShipmentLastMileCourierMan")
-   codCollections    CodCollection[] 
+  codCollections    CodCollection[] 
 
   @@index([userId], name: "idx_courierMan_userId")
   @@map("courierMans")

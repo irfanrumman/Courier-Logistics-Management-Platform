@@ -35,10 +35,7 @@ enum PaymentStatus {
   REFUNDED
 }
 
-enum ShipmentPaymentType {
-  PREPAID
-  COD
-}
+
 enum PaymentMethod {
   CARD
   CASH_ON_DELIVERY
@@ -88,7 +85,7 @@ enum ShiftStatusForHubManager {
   NIGHT
 }
 
-enum CourierType {
+enum CourierManAssignType {
   HUB_TRANSFER
   LAST_MILE
 }
@@ -105,5 +102,6 @@ enum ShipmentStatus {
   DELIVERED
   FAILED_DELIVERY
   RETURNED
+  CANCELLED   
 }
 

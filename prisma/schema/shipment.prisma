@@ -34,7 +34,7 @@ model Shipment {
   status          ShipmentStatus      @default(PENDING)
   totalWeightKg   Decimal             @db.Decimal(8, 2)
   deliveryCharge  Decimal             @db.Decimal(10, 2)
-  paymentType     ShipmentPaymentType @default(PREPAID)
+  // paymentType     ShipmentPaymentType @default(PREPAID)
   codAmount       Decimal?            @db.Decimal(10, 2)
 
   // ============ Delivery outcome tracking  ============

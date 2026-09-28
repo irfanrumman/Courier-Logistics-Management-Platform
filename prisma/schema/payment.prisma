@@ -6,13 +6,12 @@ model Payment {
   currency String  @default("BDT")
 
   method         PaymentMethod
-  paymentGateway String? // "bkash" | "sslcommerz" | "stripe" | null for COD
+  paymentGateway String? 
+  merchantInvoiceNumber String @unique // shipment id
 
-  merchantInvoiceNumber String @unique // shipment tracking number
-
-  gatewayTransactionId String? // bKash trxID / SSLCommerz val_id / Stripe payment_intent id
-  gatewayReferenceId   String? // bKash paymentID / SSLCommerz sessionkey / Stripe session id
-  payerReference       String? // user email / phone
+  gatewayTransactionId String? 
+  gatewayReferenceId   String? @unique  //bkash paymentID
+  payerReference       String? 
   paidAt               DateTime?
 
   gatewayResponse Json?

@@ -65,10 +65,24 @@ const getMyCollections = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMySenderCODCollections = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user!;
+  const { data, meta } = await CodCollectionServices.getMySenderCODCollections(req.query, user);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Your COD Collections (As Sender) Retrieved Successfully",
+    data,
+    meta,
+  });
+});
+
 export const CodCollectionController = {
   recordCollection,
   markRemitted,
   getAllCollections,
   getSingleCollection,
   getMyCollections,
+  getMySenderCODCollections
 };

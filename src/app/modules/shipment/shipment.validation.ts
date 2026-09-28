@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CourierManAssignType } from "../../../generated/prisma/enums";
 
 
 const parcelZodSchema = z.object({
@@ -29,25 +30,24 @@ export const createShipmentZodSchema = z
     originHubId: z.string().uuid("Invalid origin hub ID"),
     destinationHubId: z.string().uuid("Invalid destination hub ID"),
 
-    paymentType: z.enum(["PREPAID", "COD"]).default("PREPAID"),
-    // COD হলে codAmount বাধ্যতামূলক — নিচে .refine() দিয়ে চেক করছি
-    codAmount: z.number().positive().optional(),
+   
+   isCod: z.boolean().default(false),
+    codAmount: z.number().positive("COD amount must be greater than 0").optional(),
 
     parcels: z.array(parcelZodSchema).min(1, "At least one parcel is required"),
   })
-  // originHub আর destinationHub একই হতে পারবে না — যুক্তিসঙ্গত validation
   .refine((data) => data.originHubId !== data.destinationHubId, {
     message: "Origin and destination hub cannot be the same",
     path: ["destinationHubId"],
   })
-  // COD হলে codAmount থাকতেই হবে
-  .refine((data) => data.paymentType !== "COD" || !!data.codAmount, {
-    message: "COD amount is required when payment type is COD",
+  
+  .refine((data) => !data.isCod || !!data.codAmount, {
+    message: "COD amount is required when Cash on Delivery is selected",
     path: ["codAmount"],
   });
+ 
 
-// Status update করার সময় শুধু status + optional note নেওয়া হচ্ছে,
-// courier assignment আলাদা endpoint এ (নিচে দেখো)
+
 export const updateShipmentStatusZodSchema = z.object({
   status: z.enum([
     "PICKUP_REQUESTED",
@@ -67,7 +67,8 @@ export const updateShipmentStatusZodSchema = z.object({
 // Courier assign করার জন্য আলাদা schema — transfer আর last-mile দুটোর একটা নির্দিষ্ট করে দিতে হবে
 export const assignCourierZodSchema = z.object({
   courierManId: z.string().uuid("Invalid courier man ID"),
-  assignmentType: z.enum(["TRANSFER", "LAST_MILE"]),
+  assignmentType: z.enum([CourierManAssignType.HUB_TRANSFER, CourierManAssignType.LAST_MILE]),
+  // assignmentType: z.enum(["TRANSFER", "LAST_MILE"]),
 });
 
 
@@ -92,6 +93,10 @@ export const updateParcelZodSchema = z.object({
   isFragile: z.boolean().optional(),
 });
 
+export const payShipmentSchema = z.object({
+    shipmentId: z.string().trim(),
+}) 
+
 export type IAddParcelPayload = z.infer<typeof addParcelZodSchema>;
 export type IUpdateParcelPayload = z.infer<typeof updateParcelZodSchema>;
 
@@ -101,6 +106,7 @@ export type IAssignCourierPayload = z.infer<typeof assignCourierZodSchema>;
 
 export const shipmentValidation = {
   createShipmentZodSchema,
+  payShipmentSchema,
   updateShipmentStatusZodSchema,
   assignCourierZodSchema,
     addParcelZodSchema,       

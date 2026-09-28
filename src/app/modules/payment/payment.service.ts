@@ -10,6 +10,8 @@ import {
   IRefundPaymentPayload,
 } from "./payment.validation";
 import { IQueryForPayment } from "./payment.interface";
+import { getBkashIdToken } from "../../lib/bkash";
+import config from "../../config";
 
 // ==========================================================
 // ১. Payment শুরু করা — shipment এর জন্য Payment row তৈরি হয়, এখনো UNPAID
@@ -53,6 +55,74 @@ const payment = await prisma.payment.create({
     status: "UNPAID",
   },
 });
+
+// .....................................
+// .....................................
+
+const amount = schedule.doctor.consultationFee.toString();
+
+		const appointment = await tx.appointment.create({
+			data: {
+				status: AppointmentStatus.PENDING,
+				patientId : patient.id,
+				doctorId : schedule.doctor.id,
+				scheduleId : schedule.id
+			},
+		});
+
+
+const bkashIdToken = await getBkashIdToken();
+
+		if (!bkashIdToken) {
+			throw new AppError(httpStatus.BAD_GATEWAY, "No Bkash Access Token Found!");
+		}
+
+		const bkashCreatePaymentResponse = await fetch(
+			`${config.bkash_base_url}/tokenized/checkout/create`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Accept: "application/json",
+					Authorization: bkashIdToken,
+					"X-App-Key": config.bkash_app_key,
+				},
+				body: JSON.stringify({
+					mode: "0011",
+					// payerReference: "0123456789", //user email or phone number
+					payerReference: user.email, //user email or phone number
+					callbackURL: `${config.bkash_callback_url}/appointment/book-appointment/payment/callback`,
+					amount: amount,
+					currency: "BDT",
+					intent: "sale",
+					// merchantInvoiceNumber: "Inv4" // apppointment id
+					merchantInvoiceNumber: appointment.id, // apppointment id
+				}),
+			},
+		);
+
+		const bkashCreatePaymentResult = await bkashCreatePaymentResponse.json();
+
+		//paymen model create
+
+		await tx.payment.create({
+			data: {
+				merchantInvoiceNumber: bkashCreatePaymentResult.merchantInvoiceNumber,
+				appointmentId: appointment.id,
+				amount: amount,
+				gatewayResponse: bkashCreatePaymentResult,
+				bkashPaymentId: bkashCreatePaymentResult.paymentID,
+				payerReference: user.email,
+			},
+		});
+
+		return {
+			paymentUrl: bkashCreatePaymentResult.bkashURL,
+		};
+	});
+
+	return transactionResult;
+
 
   // ⚠️ এখানে বাস্তব bKash/SSLCommerz/Stripe SDK call করে redirect URL/checkout session
   // বানানো হবে — এটা প্রতিটা gateway এর নিজস্ব integration লাগবে, এখনো placeholder

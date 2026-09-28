@@ -11,7 +11,41 @@ const createShipment = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
-    message: "Shipment Created Successfully",
+    message: "Shipment created. Please complete payment to proceed.",
+    data: result, // { paymentUrl }
+  });
+});
+
+const payShipment = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user!;
+
+  const result = await ShipmentServices.payShipment(req.body, user);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Payment Session Created Successfully.",
+    data: result,
+  });
+});
+
+
+const shipmentPaymentCallback = catchAsync(async (req: Request, res: Response) => {
+  const result = await ShipmentServices.shipmentPaymentCallback(req.query);
+
+ 
+  res.redirect(result.redirectUrl);
+});
+
+const cancelShipment = catchAsync(async (req: Request, res: Response) => {
+  const shipmentId = req.params.shipmentId as string;
+  const user = req.user!;
+  const result = await ShipmentServices.cancelShipment(shipmentId, user);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Shipment Cancelled Successfully",
     data: result,
   });
 });
@@ -43,7 +77,8 @@ const getShipmentByTrackingNumber = catchAsync(async (req: Request, res: Respons
 
 const getSingleShipmentById = catchAsync(async (req: Request, res: Response) => {
   const shipmentId = req.params.shipmentId as string;
-  const result = await ShipmentServices.getSingleShipmentById(shipmentId);
+  const user = req.user!;  
+  const result = await ShipmentServices.getSingleShipmentById(shipmentId, user);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -78,10 +113,10 @@ const updateShipmentStatus = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const assignCourier = catchAsync(async (req: Request, res: Response) => {
+const assignCourierMan = catchAsync(async (req: Request, res: Response) => {
   const shipmentId = req.params.shipmentId as string;
   const user = req.user!;
-  const result = await ShipmentServices.assignCourier(shipmentId, req.body, user);
+  const result = await ShipmentServices.assignCourierMan(shipmentId, req.body, user);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -90,7 +125,6 @@ const assignCourier = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-
 
 const addParcel = catchAsync(async (req: Request, res: Response) => {
   const shipmentId = req.params.shipmentId as string;
@@ -140,13 +174,16 @@ const deleteParcel = catchAsync(async (req: Request, res: Response) => {
 
 export const ShipmentController = {
   createShipment,
+  payShipment,
+  shipmentPaymentCallback,
+  cancelShipment,
   getMyShipments,
   getShipmentByTrackingNumber,
   getSingleShipmentById,
   getAllShipments,
   updateShipmentStatus,
-  assignCourier,
-   addParcel,     
-  updateParcel,   
+  assignCourierMan,
+  addParcel,
+  updateParcel,
   deleteParcel,
 };

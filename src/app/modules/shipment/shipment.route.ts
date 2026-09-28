@@ -9,24 +9,50 @@ import { parseFormDataJson } from "../../middleware/parseFormDataJson";
 
 const router = Router();
 
-// Customer/Merchant — শুধু CUSTOMER role হলেই shipment create করতে পারবে
+
 router.post(
   "/create-shipment",
-  auth(Role.CUSTOMER),
+  auth(Role.CUSTOMER, Role.MERCHANT),
   validateRequest(shipmentValidation.createShipmentZodSchema),
   ShipmentController.createShipment,
 );
 
+router.post(
+  "/pay-shipment",
+  auth(Role.CUSTOMER, Role.MERCHANT),
+  validateRequest(shipmentValidation.payShipmentSchema),
+  ShipmentController.payShipment,
+);
+
+
+router.get(
+  "/create-shipment/payment/callback",
+  ShipmentController.shipmentPaymentCallback,
+);
+
 router.get(
   "/my-shipments",
-  auth(Role.CUSTOMER),
+  auth(Role.CUSTOMER, Role.MERCHANT),
   ShipmentController.getMyShipments,
 );
 
-// Public — tracking number দিয়ে track করতে login লাগবে না
+router.patch(
+  "/cancel/:shipmentId",
+  auth(Role.CUSTOMER, Role.MERCHANT),
+  ShipmentController.cancelShipment,
+);
+
+
 router.get(
   "/track/:trackingNumber",
   ShipmentController.getShipmentByTrackingNumber,
+);
+
+
+router.get(
+  "/single-shipment/:shipmentId",
+  auth(Role.CUSTOMER, Role.MERCHANT, Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
+  ShipmentController.getSingleShipmentById,
 );
 
 // Admin/Hub Manager — internal management
@@ -34,12 +60,6 @@ router.get(
   "/all-shipments",
   auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
   ShipmentController.getAllShipments,
-);
-
-router.get(
-  "/single-shipment/:shipmentId",
-  auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
-  ShipmentController.getSingleShipmentById,
 );
 
 router.patch(
@@ -53,20 +73,19 @@ router.patch(
   "/assign-courier/:shipmentId",
   auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
   validateRequest(shipmentValidation.assignCourierZodSchema),
-  ShipmentController.assignCourier,
+  ShipmentController.assignCourierMan,
 );
 
 router.post(
   "/:shipmentId/parcels",
-  auth(Role.CUSTOMER),
+  auth(Role.CUSTOMER, Role.MERCHANT),
   validateRequest(shipmentValidation.addParcelZodSchema),
   ShipmentController.addParcel,
 );
 
-// PATCH এ file upload থাকতে পারে (parcelImage), তাই multer + parseFormDataJson লাগবে
 router.patch(
   "/:shipmentId/parcels/:parcelId",
-  auth(Role.CUSTOMER),
+  auth(Role.CUSTOMER, Role.MERCHANT),
   upload.fields([{ name: "parcelImage", maxCount: 1 }]),
   parseFormDataJson,
   validateRequest(shipmentValidation.updateParcelZodSchema),
@@ -75,11 +94,9 @@ router.patch(
 
 router.delete(
   "/:shipmentId/parcels/:parcelId",
-  auth(Role.CUSTOMER),
+  auth(Role.CUSTOMER, Role.MERCHANT),
   ShipmentController.deleteParcel,
 );
-
-
 
 export const ShipmentRoutes = router;
 

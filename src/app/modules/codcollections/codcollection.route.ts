@@ -41,4 +41,11 @@ router.get(
   CodCollectionController.getSingleCollection,
 );
 
+
+router.get(
+  "/my-sender-collections",
+  auth(Role.MERCHANT),
+  CodCollectionController.getMySenderCODCollections,  
+);
+
 export const CodCollectionRoutes = router;

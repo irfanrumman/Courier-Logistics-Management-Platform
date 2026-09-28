@@ -4,7 +4,12 @@ export interface IQueryForShipment {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   searchTerm?: string; 
-  paymentType?: string;
+  isCod?: string
+  status?: string;
   originHubId?: string;
   destinationHubId?: string;
+}
+
+export interface IPayShipmentPayload {
+    shipmentId: string;
 }
