@@ -11,7 +11,7 @@ import { transporter } from "../../lib/nodemailer";
 import { redisClient } from "../../lib/redis";
 import { AppError } from "../../utils/AppError";
 import { RequestUser } from "../../middleware/checkAuth";
-import { Role, MerchantVerificationStatus } from "../../../generated/prisma/enums";
+import { Role, MerchantVerificationStatus, UserStatus } from "../../../generated/prisma/enums";
 import { MerchantProfileWhereInput } from "../../../generated/prisma/models";
 import {
   IRegisterMerchantPayload,
@@ -528,7 +528,8 @@ const adminUpdateMerchantStatus = async (
 };
 
 
-const deleteMerchant = async (merchantId: string) => {
+
+const adminDeleteMerchant = async (merchantId: string) => {
   const existingMerchant = await prisma.merchantProfile.findUnique({
     where: { id: merchantId },
   });
@@ -541,13 +542,29 @@ const deleteMerchant = async (merchantId: string) => {
     throw new AppError(httpStatus.GONE, "Merchant Already Deleted");
   }
 
-  const deletedMerchant = await prisma.merchantProfile.update({
-    where: { id: merchantId },
-    data: { isDeleted: true, deletedAt: new Date() },
-    include: { user: { omit: { password: true } } },
+  const deletedMerchant = await prisma.$transaction(async (tx) => {
+    const merchant = await tx.merchantProfile.update({
+      where: { id: merchantId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+      include: { user: { omit: { password: true } } },
+    });
+
+    await tx.user.update({
+      where: { id: merchant.userId },
+      data: {
+        status: UserStatus.DELETED,
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    return merchant;
   });
 
-  return deletedMerchant;
+  return null;
 };
 
 export const MerchantServices = {
@@ -559,5 +576,5 @@ export const MerchantServices = {
   getAllMerchants,
   getSingleMerchantById,
   adminUpdateMerchantStatus,
-  deleteMerchant,
+  adminDeleteMerchant,
 };

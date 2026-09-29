@@ -57,7 +57,7 @@ router.patch(
 router.delete(
   "/delete/:courierManId",
   auth(Role.ADMIN, Role.SUPER_ADMIN),
-  CourierManController.deleteCourierMan,
+  CourierManController.adminDeleteCourierMan,
 );
 
 // Courier man নিজের জন্য (self-service)

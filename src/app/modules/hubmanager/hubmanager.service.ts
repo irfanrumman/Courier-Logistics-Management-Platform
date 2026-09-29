@@ -12,7 +12,7 @@ import { prisma } from "../../lib/prisma";
 import { redisClient } from "../../lib/redis";
 import { RequestUser } from "../../middleware/checkAuth";
 import { AppError } from "../../utils/AppError";
-import { HubManagerVerificationStatus, Role } from "../../../generated/prisma/enums";
+import { HubManagerVerificationStatus, Role, UserStatus } from "../../../generated/prisma/enums";
 import { generateSystemPassword } from "../../utils/generateSystemPassword";
 import { IAdminUpdateHubManagerPayload, IApplyAsHubManagerPayload, IHubManagerEmailVerifyPayload } from "./hubmanager.validation";
 import { IApproveHubManagerPayload, IUpdateHubManagerProfilePayload } from "./hubmanager.intreface";
@@ -625,8 +625,8 @@ const adminUpdateHubManager = async (
   return updatedHubManager;
 };
 
-const deleteHubManager = async (hubManagerId: string) => {
 
+const adminDeleteHubManager = async (hubManagerId: string) => {
   const existingHubManager = await prisma.hubManager.findUnique({
     where: { id: hubManagerId },
   });
@@ -639,19 +639,32 @@ const deleteHubManager = async (hubManagerId: string) => {
     throw new AppError(httpStatus.GONE, "Hub Manager Already Deleted");
   }
 
-  const deletedHubManager = await prisma.hubManager.update({
-    where: { id: hubManagerId },
-    data: {
-      isDeleted: true,
-      deletedAt: new Date(),
-    },
-    include: {
-      user: { omit: { password: true } },
-      hub: true,
-    },
+  const deletedHubManager = await prisma.$transaction(async (tx) => {
+    const hubManager = await tx.hubManager.update({
+      where: { id: hubManagerId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+      include: {
+        user: { omit: { password: true } },
+        hub: true,
+      },
+    });
+
+    await tx.user.update({
+      where: { id: hubManager.userId },
+      data: {
+        status: UserStatus.DELETED,
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    return hubManager;
   });
 
-  return deletedHubManager;
+  return null;
 };
 
 
@@ -664,6 +677,6 @@ export const HubManagerServices = {
 	updateHubManagerProfile,
  getSingleHubManagerById,
  adminUpdateHubManager,
- deleteHubManager
+ adminDeleteHubManager
 };
 

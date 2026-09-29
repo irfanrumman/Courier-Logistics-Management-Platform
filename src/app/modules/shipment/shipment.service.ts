@@ -8,7 +8,7 @@ import { prisma } from "../../lib/prisma";
 import type { RequestUser } from "../../middleware/checkAuth";
 import { AppError } from "../../utils/AppError";
 import { ShipmentWhereInput } from "../../../generated/prisma/models";
-import { CourierManAssignType, CourierManCurrentStatus, CourierManVerificationStatus, PaymentMethod, Role, ShipmentStatus } from "../../../generated/prisma/enums";  
+import { CourierManAssignType, CourierManCurrentStatus, CourierManVerificationStatus, HubManagerStatus, HubManagerVerificationStatus, MerchantStatus, PaymentMethod, Role, ShipmentStatus, UserStatus } from "../../../generated/prisma/enums";  
 import { PaymentStatus } from "../../../generated/prisma/enums";
 import {PricingRuleServices} from "../pricingrule/pricingrule.service";
 import {
@@ -68,7 +68,98 @@ const recalculateShipmentWeightAndPrice = async (tx: TxClient, shipmentId: strin
 };
 
 
+const getActiveHubManagerHubId = async (userId: string): Promise<string> => {
+  const dbUser = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { hubManager: true },
+  });
+
+  if (
+    !dbUser ||
+    dbUser.isDeleted ||
+    dbUser.status !== UserStatus.ACTIVE ||
+    !dbUser.hubManager ||
+    dbUser.hubManager.isDeleted ||
+    dbUser.hubManager.status !== HubManagerStatus.ACTIVE ||
+    dbUser.hubManager.verificationStatus !== HubManagerVerificationStatus.APPROVED
+  ) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "Your hub manager account is inactive, on leave, suspended, or not verified.",
+    );
+  }
+
+  if (!dbUser.hubManager.hubId) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You are not assigned to any hub.",
+    );
+  }
+
+  return dbUser.hubManager.hubId;
+};
+
+const assertShipmentBelongsToHub = (
+  shipment: { originHubId: string; destinationHubId: string },
+  hubId: string,
+) => {
+  if (
+    shipment.originHubId !== hubId &&
+    shipment.destinationHubId !== hubId
+  ) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You can only access shipments related to your hub",
+    );
+  }
+};
+
+
+
+// Main service functions start
+
+
 const createShipment = async (payload: ICreateShipmentPayload, user: RequestUser) => {
+  
+  if (user.role === Role.CUSTOMER || user.role === Role.MERCHANT) {
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.userId },
+    include: {
+      customer: true,
+      merchantProfile: true,
+    },
+  });
+
+  if (!dbUser || dbUser.isDeleted || dbUser.status !== UserStatus.ACTIVE) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "Your account is suspended or deleted. You cannot create shipments.",
+    );
+  }
+
+  if (user.role === Role.CUSTOMER) {
+    if (!dbUser.customer || dbUser.customer.isDeleted) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "Your customer account is deleted or incomplete. You cannot create shipments.",
+      );
+    }
+  }
+
+  if (user.role === Role.MERCHANT) {
+    if (
+      !dbUser.merchantProfile ||
+      dbUser.merchantProfile.isDeleted ||
+      dbUser.merchantProfile.status !== MerchantStatus.ACTIVE
+    ) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "Your merchant account is suspended or deleted. You cannot create shipments.",
+      );
+    }
+  }
+}
+
   const transactionResult = await prisma.$transaction(
     async (tx) => {
       const originHub = await tx.hub.findUnique({ where: { id: payload.originHubId } });
@@ -1090,6 +1181,7 @@ const getShipmentByTrackingNumber = async (trackingNumber: string) => {
 //  Admin/Hub Manager, mechant/customer: single shipment by ID
 // ==========================================================
 const getSingleShipmentById = async (shipmentId: string, user: RequestUser) => {
+
   const shipment = await prisma.shipment.findUnique({
     where: { id: shipmentId },
     include: {
@@ -1114,6 +1206,11 @@ const getSingleShipmentById = async (shipmentId: string, user: RequestUser) => {
     throw new AppError(httpStatus.FORBIDDEN, "You Are Not Allowed To View This Shipment");
   }
 
+  if (user.role === Role.HUB_MANAGER) {
+    const hubId = await getActiveHubManagerHubId(user.userId);
+    assertShipmentBelongsToHub(shipment, hubId);
+  }
+
   return shipment;
 };
 
@@ -1121,7 +1218,7 @@ const getSingleShipmentById = async (shipmentId: string, user: RequestUser) => {
 //  Admin/Hub Manager: shipment list
 // ==========================================================
 
-const getAllShipments = async (query: IQueryForShipment) => {
+const getAllShipments = async (query: IQueryForShipment, user: RequestUser) => {
 
   const limit = query.limit ? Number(query.limit) : 10;
   const page = query.page ? Number(query.page) : 1;
@@ -1130,6 +1227,14 @@ const getAllShipments = async (query: IQueryForShipment) => {
   const sortOrder = query.sortOrder ? query.sortOrder : "desc";
 
   const andConditions: ShipmentWhereInput[] = [];
+
+  
+  if (user.role === Role.HUB_MANAGER) {
+    const hubId = await getActiveHubManagerHubId(user.userId);
+    andConditions.push({
+      OR: [{ originHubId: hubId }, { destinationHubId: hubId }],
+    });
+  }
 
   if (query.searchTerm) {
     andConditions.push({
@@ -1191,10 +1296,54 @@ const updateShipmentStatus = async (
   payload: IUpdateShipmentStatusPayload,
   updater: RequestUser,
 ) => {
+
+  let hubManagerHubId : string | null = null;
+
+  if (updater.role === Role.HUB_MANAGER) {
+    hubManagerHubId = await getActiveHubManagerHubId(updater.userId);
+  }
+
+  if (updater.role === Role.HUB_MANAGER) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: updater.userId },
+      include: { hubManager: true },
+    });
+
+
+  if (
+     !dbUser ||
+     dbUser.isDeleted ||
+     dbUser.status !== UserStatus.ACTIVE ||
+    !dbUser.hubManager ||
+     dbUser.hubManager.isDeleted ||
+    dbUser.hubManager.status !== HubManagerStatus.ACTIVE ||
+    dbUser.hubManager.verificationStatus !== HubManagerVerificationStatus.APPROVED
+   ) {
+      const reason =
+      !dbUser || dbUser.isDeleted || dbUser.status !== UserStatus.ACTIVE
+      ? "inactive or deleted"
+      : !dbUser.hubManager || dbUser.hubManager.isDeleted
+        ? "missing or deleted"
+        : dbUser.hubManager.verificationStatus !== HubManagerVerificationStatus.APPROVED
+          ? "not verified"
+          : dbUser.hubManager.status; 
+
+     throw new AppError(
+    httpStatus.FORBIDDEN,
+    `Your hub manager account is ${reason}. You cannot update shipment status.`,
+    );
+  }
+}
+
+
   const existingShipment = await prisma.shipment.findUnique({ where: { id: shipmentId } });
 
   if (!existingShipment) {
     throw new AppError(httpStatus.NOT_FOUND, "Shipment Not Found");
+  }
+
+  if (hubManagerHubId) {
+    assertShipmentBelongsToHub(existingShipment, hubManagerHubId);
   }
   
   const TERMINAL_STATUSES: ShipmentStatus[] = [
@@ -1263,12 +1412,27 @@ const assignCourierMan = async (
   payload: IAssignCourierPayload,
   updater: RequestUser,
 ) => {
+
+
+  let hubManagerHubId: string | null = null;
+
+  if (updater.role === Role.HUB_MANAGER) {
+    hubManagerHubId = await getActiveHubManagerHubId(updater.userId);
+  }
+
+
   const existingShipment = await prisma.shipment.findUnique({ where: { id: shipmentId } });
+
   if (!existingShipment) {
     throw new AppError(httpStatus.NOT_FOUND, "Shipment Not Found");
   }
 
+  if (hubManagerHubId) {
+    assertShipmentBelongsToHub(existingShipment, hubManagerHubId);
+  }
+
   const courierMan = await prisma.courierMan.findUnique({ where: { id: payload.courierManId } });
+  
   if (!courierMan) {
     throw new AppError(httpStatus.NOT_FOUND, "Courier Man Not Found");
   }
@@ -1359,6 +1523,98 @@ if (courierMan.currentStatus !== CourierManCurrentStatus.ACTIVE) {
   });
 
   return updatedShipment;
+};
+
+const shipmentAsDelivered = async (
+  shipmentId: string,
+  user: RequestUser,
+) => {
+  // 1. Find courier profile
+  const courierMan = await prisma.courierMan.findUnique({
+    where: { userId: user.userId },
+  });
+
+  if (!courierMan) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "Courier Man Profile Not Found",
+    );
+  }
+
+  // 2. Find shipment
+  const shipment = await prisma.shipment.findUnique({
+    where: { id: shipmentId },
+    include: {
+      codCollection: true,
+    },
+  });
+
+  if (!shipment) {
+    throw new AppError(
+      httpStatus.NOT_FOUND,
+      "Shipment Not Found",
+    );
+  }
+
+  // 3. Check whether this courier is assigned
+  // as the last-mile courier
+  if (shipment.lastMileCourierManId !== courierMan.id) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You Are Not Assigned To This Shipment",
+    );
+  }
+
+  // 4. Shipment must be out for delivery
+  if (shipment.status !== ShipmentStatus.OUT_FOR_DELIVERY) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Only shipments out for delivery can be marked as delivered",
+    );
+  }
+
+  // 5. If this is a COD shipment,
+  // collection must be recorded before delivery
+  if (shipment.codAmount !== null && !shipment.codCollection) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "COD Collection Must Be Recorded Before Delivery",
+    );
+  }
+
+  // 6. Update shipment, create history,
+  // and make courier available again
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedShipment = await tx.shipment.update({
+      where: { id: shipmentId },
+      data: {
+        status: ShipmentStatus.DELIVERED,
+        deliveredAt: new Date(),
+      },
+    });
+
+    // Create status history
+    await tx.shipmentStatusHistory.create({
+      data: {
+        shipmentId,
+        status: ShipmentStatus.DELIVERED,
+        note: "Shipment delivered successfully",
+        updatedById: user.userId,
+      },
+    });
+
+    // Courier is now available for another shipment
+    await tx.courierMan.update({
+      where: { id: courierMan.id },
+      data: {
+        isAvailable: true,
+      },
+    });
+
+    return updatedShipment;
+  });
+
+  return result;
 };
 
 // ==========================================================
@@ -1559,6 +1815,7 @@ export const ShipmentServices = {
   getAllShipments,
   updateShipmentStatus,
   assignCourierMan,
+  shipmentAsDelivered,
   addParcel,
   updateParcel,
   deleteParcel,

@@ -84,7 +84,7 @@ router.patch(
 router.delete(
   "/delete/:hubManagerId",
   auth(Role.ADMIN, Role.SUPER_ADMIN),
-  HubManagerController.deleteHubManager,
+  HubManagerController.adminDeleteHubManager,
 );
 
 export const HubManagerRoutes = router;

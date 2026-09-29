@@ -124,16 +124,16 @@ const adminUpdateHubManager = catchAsync(async (req: Request, res: Response) => 
 });
 
 
-const deleteHubManager = catchAsync(async (req: Request, res: Response) => {
+const adminDeleteHubManager = catchAsync(async (req: Request, res: Response) => {
   const hubManagerId = req.params.hubManagerId as string;
 
-  const result = await HubManagerServices.deleteHubManager(hubManagerId);
+ await HubManagerServices.adminDeleteHubManager(hubManagerId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: "Hub Manager Deleted Successfully",
-    data: result,
+    data: null,
   });
 });
 
@@ -145,5 +145,5 @@ export const HubManagerController = {
 	updateHubManagerProfile,
 	getSingleHubManagerById,
 	adminUpdateHubManager,
-	deleteHubManager
+	adminDeleteHubManager
 };

@@ -8,12 +8,12 @@ import {
   IMarkRemittedPayload,
 } from "./codcollection.validation";
 import { IQueryForCodCollection } from "./codcollection.interface";
+import { ShipmentStatus } from "../../../generated/prisma/enums";
 
-// ==========================================================
-// ১. Courier delivery সম্পন্ন করার সময় কত টাকা receiver থেকে নিলো সেটা রেকর্ড করা —
-// শুধু LAST_MILE courier যাকে shipment এ assign করা আছে, সেই নিজের collection record করতে পারবে
-// ==========================================================
+
+
 const recordCollection = async (payload: IRecordCollectionPayload, user: RequestUser) => {
+
   const shipment = await prisma.shipment.findUnique({
     where: { id: payload.shipmentId },
     include: { codCollection: true },
@@ -26,6 +26,27 @@ const recordCollection = async (payload: IRecordCollectionPayload, user: Request
   if (!shipment.codAmount) {
     throw new AppError(httpStatus.BAD_REQUEST, "This Shipment Is Not Cash-On-Delivery");
   }
+
+  if (shipment.codAmount === null) {
+  throw new AppError(
+    httpStatus.BAD_REQUEST,
+    "This Shipment Is Not Cash-On-Delivery",
+  );
+}
+
+if (shipment.status !== ShipmentStatus.OUT_FOR_DELIVERY) {
+  throw new AppError(
+    httpStatus.BAD_REQUEST,
+    "COD Can Only Be Collected For Shipments Out For Delivery",
+  );
+}
+
+if (payload.amountCollected <= 0) {
+  throw new AppError(
+    httpStatus.BAD_REQUEST,
+    "Collected Amount Must Be Greater Than Zero",
+  );
+}
 
   // যে courier record করছে, সেই courier এর CourierMan profile খুঁজছি (userId দিয়ে)
   const courierMan = await prisma.courierMan.findUnique({ where: { userId: user.userId } });

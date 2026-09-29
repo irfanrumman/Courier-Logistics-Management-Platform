@@ -4,6 +4,8 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { ShipmentServices } from "./shipment.service";
 
+
+
 const createShipment = catchAsync(async (req: Request, res: Response) => {
   const user = req.user!;
   const result = await ShipmentServices.createShipment(req.body, user);
@@ -89,7 +91,9 @@ const getSingleShipmentById = catchAsync(async (req: Request, res: Response) => 
 });
 
 const getAllShipments = catchAsync(async (req: Request, res: Response) => {
-  const { data, meta } = await ShipmentServices.getAllShipments(req.query);
+
+
+  const { data, meta } = await ShipmentServices.getAllShipments(req.query, req.user!);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -117,6 +121,19 @@ const assignCourierMan = catchAsync(async (req: Request, res: Response) => {
   const shipmentId = req.params.shipmentId as string;
   const user = req.user!;
   const result = await ShipmentServices.assignCourierMan(shipmentId, req.body, user);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Courier Assigned Successfully",
+    data: result,
+  });
+});
+
+const shipmentAsDelivered = catchAsync(async (req: Request, res: Response) => {
+  const shipmentId = req.params.shipmentId as string;
+  const user = req.user!;
+  const result = await ShipmentServices.shipmentAsDelivered(shipmentId, user);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -183,6 +200,7 @@ export const ShipmentController = {
   getAllShipments,
   updateShipmentStatus,
   assignCourierMan,
+  shipmentAsDelivered,
   addParcel,
   updateParcel,
   deleteParcel,

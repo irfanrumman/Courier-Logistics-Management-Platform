@@ -7,7 +7,8 @@ import { CodCollectionController } from "./codcollection.controller";
 
 const router = Router();
 
-// Courier man নিজেই collection record করবে (delivery করার পর)
+
+
 router.post(
   "/record",
   auth(Role.COURIER_MAN),
@@ -49,3 +50,5 @@ router.get(
 );
 
 export const CodCollectionRoutes = router;
+
+// codCollection/   → COD cash collection + remittance tracking

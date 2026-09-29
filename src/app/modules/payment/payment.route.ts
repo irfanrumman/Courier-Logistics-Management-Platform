@@ -16,11 +16,11 @@ router.post(
 
 // Gateway callback/webhook — সাধারণত এটাতে auth middleware লাগে না (gateway সরাসরি call করে),
 // কিন্তু bKash/SSLCommerz এর signature verification দরকার হয় (এই মুহূর্তে placeholder)
-router.post(
-  "/confirm",
-  validateRequest(paymentValidation.confirmPaymentZodSchema),
-  PaymentController.confirmPayment,
-);
+// router.post(
+//   "/confirm",
+//   validateRequest(paymentValidation.confirmPaymentZodSchema),
+//   PaymentController.confirmPayment,
+// );
 
 router.get(
   "/my-payments",
@@ -40,12 +40,12 @@ router.get(
   PaymentController.getSinglePayment,
 );
 
-router.patch(
-  "/refund/:paymentId",
-  auth(Role.ADMIN, Role.SUPER_ADMIN),
-  validateRequest(paymentValidation.refundPaymentZodSchema),
-  PaymentController.refundPayment,
-);
+// router.patch(
+//   "/refund/:paymentId",
+//   auth(Role.ADMIN, Role.SUPER_ADMIN),
+//   validateRequest(paymentValidation.refundPaymentZodSchema),
+//   PaymentController.refundPayment,
+// );
 
 export const PaymentRoutes = router;
 

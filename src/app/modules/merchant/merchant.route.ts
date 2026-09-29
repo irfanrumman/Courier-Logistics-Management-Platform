@@ -66,7 +66,7 @@ router.patch(
 router.delete(
   "/delete/:merchantId",
   auth(Role.ADMIN, Role.SUPER_ADMIN),
-  MerchantController.deleteMerchant,
+  MerchantController.adminDeleteMerchant,
 );
 
 export const MerchantRoutes = router;

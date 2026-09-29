@@ -12,7 +12,7 @@ import { prisma } from "../../lib/prisma";
 import { redisClient } from "../../lib/redis";
 import { RequestUser } from "../../middleware/checkAuth";
 import { AppError } from "../../utils/AppError";
-import { CourierManVerificationStatus, Role } from "../../../generated/prisma/enums";
+import { CourierManVerificationStatus, Role, UserStatus } from "../../../generated/prisma/enums";
 import { generateSystemPassword } from "../../utils/generateSystemPassword";
 import { CourierManWhereInput } from "../../../generated/prisma/models";
 import {
@@ -258,10 +258,7 @@ const approveCourierMan = async (payload: IApproveCourierManPayload, reviewer: R
   return updatedCourierMan;
 };
 
-// ==========================================================
-// ৪. Admin list view — courierType, currentStatus, isAvailable দিয়ে filter সাপোর্ট করছে
-// (hub manager এর hubCode/hubName filter এর মতোই, শুধু courier-specific field গুলো যোগ করলাম)
-// ==========================================================
+
 const getAllCourierMans = async (query: IQueryForCourier) => {
   const limit = query.limit ? Number(query.limit) : 10;
   const page = query.page ? Number(query.page) : 1;
@@ -351,10 +348,7 @@ const getSingleCourierManById = async (courierManId: string) => {
   return courierMan;
 };
 
-// ==========================================================
-// ৫. নিজের profile আপডেট — hub manager এর pattern এ, শুধু courier fields ভিন্ন
-// rating/totalDeliveries/verificationStatus কখনো এখানে থাকবে না (system/admin controlled)
-// ==========================================================
+
 const updateCourierManProfile = async (
   payload: IUpdateCourierManProfilePayload,
   user: RequestUser,
@@ -398,11 +392,7 @@ const updateCourierManProfile = async (
   return result;
 };
 
-// ==========================================================
-// ৬. Availability toggle — courier নিজে "আমি এখন ফ্রি/ব্যস্ত" সেট করবে
-// এটা আলাদা, ছোট, ঘন ঘন কল হওয়া endpoint (profile update এর সাথে মেশাইনি,
-// কারণ mobile app থেকে এটা বারবার toggle হবে, পুরো profile payload পাঠানো অপচয়)
-// ==========================================================
+
 const toggleAvailability = async (payload: IToggleAvailabilityPayload, user: RequestUser) => {
   const existingCourierMan = await prisma.courierMan.findUnique({
     where: { userId: user.userId },
@@ -432,10 +422,7 @@ const toggleAvailability = async (payload: IToggleAvailabilityPayload, user: Req
   return updated;
 };
 
-// ==========================================================
-// ৭. Live location update — courier এর mobile app থেকে বারবার call হবে
-// (delivery tracking/nearest-courier lookup এর জন্য shipment assignment logic এ ব্যবহার হবে)
-// ==========================================================
+
 const updateLocation = async (payload: IUpdateLocationPayload, user: RequestUser) => {
   const existingCourierMan = await prisma.courierMan.findUnique({
     where: { userId: user.userId },
@@ -456,9 +443,7 @@ const updateLocation = async (payload: IUpdateLocationPayload, user: RequestUser
   return updated;
 };
 
-// ==========================================================
-// ৮. Admin update — hub/zone assign করা, currentStatus বদলানো (SUSPENDED/ON_LEAVE)
-// ==========================================================
+
 const adminUpdateCourierMan = async (
   courierManId: string,
   payload: IAdminUpdateCourierManPayload,
@@ -502,11 +487,8 @@ const adminUpdateCourierMan = async (
   return updatedCourierMan;
 };
 
-// ==========================================================
-// ৯. Soft delete — hub manager pattern অনুসরণ করলাম, hubId/zoneId/status বদলাইনি
-// (আগের আলোচনা অনুযায়ী isDeleted:false filter সব জায়গায় থাকা মূল সুরক্ষা)
-// ==========================================================
-const deleteCourierMan = async (courierManId: string) => {
+
+const adminDeleteCourierMan = async (courierManId: string) => {
   const existingCourierMan = await prisma.courierMan.findUnique({
     where: { id: courierManId },
   });
@@ -519,17 +501,30 @@ const deleteCourierMan = async (courierManId: string) => {
     throw new AppError(httpStatus.GONE, "Courier Man Already Deleted");
   }
 
-  const deletedCourierMan = await prisma.courierMan.update({
-    where: { id: courierManId },
-    data: {
-      isDeleted: true,
-      deletedAt: new Date(),
-    },
-    include: {
-      user: { omit: { password: true } },
-      currentHub: true,
-      zone: true,
-    },
+  const deletedCourierMan = await prisma.$transaction(async (tx) => {
+    const courierMan = await tx.courierMan.update({
+      where: { id: courierManId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+      include: {
+        user: { omit: { password: true } },
+        currentHub: true,
+        zone: true,
+      },
+    });
+
+    await tx.user.update({
+      where: { id: courierMan.userId },
+      data: {
+        status: UserStatus.DELETED,
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    return courierMan;
   });
 
   return deletedCourierMan;
@@ -545,5 +540,5 @@ export const CourierManServices = {
   toggleAvailability,
   updateLocation,
   adminUpdateCourierMan,
-  deleteCourierMan,
+  adminDeleteCourierMan,
 };

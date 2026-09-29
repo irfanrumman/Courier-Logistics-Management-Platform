@@ -112,15 +112,15 @@ const adminUpdateMerchantStatus = catchAsync(async (req: Request, res: Response)
   });
 });
 
-const deleteMerchant = catchAsync(async (req: Request, res: Response) => {
+const adminDeleteMerchant = catchAsync(async (req: Request, res: Response) => {
   const merchantId = req.params.merchantId as string;
-  const result = await MerchantServices.deleteMerchant(merchantId);
+ await MerchantServices.adminDeleteMerchant(merchantId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: "Merchant Deleted Successfully",
-    data: result,
+    data: null,
   });
 });
 
@@ -133,5 +133,5 @@ export const MerchantController = {
   getAllMerchants,
   getSingleMerchantById,
   adminUpdateMerchantStatus,
-  deleteMerchant,
+ adminDeleteMerchant,
 };

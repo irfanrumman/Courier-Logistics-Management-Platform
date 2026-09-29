@@ -115,9 +115,9 @@ const adminUpdateCourierMan = catchAsync(async (req: Request, res: Response) => 
   });
 });
 
-const deleteCourierMan = catchAsync(async (req: Request, res: Response) => {
+const adminDeleteCourierMan = catchAsync(async (req: Request, res: Response) => {
   const courierManId = req.params.courierManId as string;
-  const result = await CourierManServices.deleteCourierMan(courierManId);
+  const result = await CourierManServices.adminDeleteCourierMan(courierManId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -137,5 +137,5 @@ export const CourierManController = {
   toggleAvailability,
   updateLocation,
   adminUpdateCourierMan,
-  deleteCourierMan,
+  adminDeleteCourierMan,
 };

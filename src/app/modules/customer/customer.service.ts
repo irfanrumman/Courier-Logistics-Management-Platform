@@ -5,7 +5,7 @@ import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
 import { IAdminUpdateCustomerPayload, IRegisterCustomerPayload, IUpdateCustomerProfilePayload } from "./customer.validation";
 import config from "../../config";
-import { Role } from "../../../generated/prisma/enums";
+import { Role, UserStatus } from "../../../generated/prisma/enums";
 import { redisClient } from "../../lib/redis";
 import path from "path";
 import ejs from "ejs";
@@ -425,10 +425,6 @@ const adminDeleteCustomer = async (customerId: string) => {
       isDeleted: false,
     },
   });
-  
-
-
-
 
   if (!existingCustomer) {
     throw new AppError(
@@ -441,8 +437,8 @@ const adminDeleteCustomer = async (customerId: string) => {
     throw new AppError(httpStatus.GONE, "Customer Already Deleted");
   }
   
-
-   await prisma.customer.update({
+    const deleteCustomer = await prisma.$transaction(async (tx) => {
+    const customer = await prisma.customer.update({
     where: { id: customerId },
     data: {
       isDeleted: true,
@@ -454,6 +450,19 @@ const adminDeleteCustomer = async (customerId: string) => {
     },
   });
 
+
+    await tx.user.update({
+      where: { id: customer.userId },
+      data: {
+        status: UserStatus.DELETED,
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    return customer;
+  });
+   
   return null;
 };
 
