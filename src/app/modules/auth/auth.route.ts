@@ -26,17 +26,21 @@ router.post(
 
 router.get(
 	"/me",
-	auth(Role.ADMIN, Role.CUSTOMER, Role.COURIER_MAN, Role.HUB_MANAGER, Role.SUPER_ADMIN),
+	auth(Role.ADMIN, Role.CUSTOMER, Role.MERCHANT, Role.COURIER_MAN, Role.HUB_MANAGER, Role.SUPER_ADMIN),
 	
 	AuthController.getMe,
 );
+
 router.post("/refresh-token", AuthController.refreshToken);
+
 router.post("/google", AuthController.googleLogin);
+
 router.post(
 	"/forgot-password",
 	validateRequest(UserValidation.ForgotPasswordZodSchema),
 	AuthController.forgotPassword,
 );
+
 router.post(
 	"/reset-password",
 	validateRequest(UserValidation.ResetPasswordZodSchema),

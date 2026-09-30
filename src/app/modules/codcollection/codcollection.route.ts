@@ -16,6 +16,13 @@ router.post(
   CodCollectionController.recordCollection,
 );
 
+router.patch(
+  "/confirm-hub-receipt",
+  auth(Role.HUB_MANAGER),
+  validateRequest(codCollectionValidation.confirmHubReceiptZodSchema),
+  CodCollectionController.confirmHubReceipt,
+);
+
 router.get(
   "/my-collections",
   auth(Role.COURIER_MAN),

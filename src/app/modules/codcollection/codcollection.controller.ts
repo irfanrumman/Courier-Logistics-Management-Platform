@@ -16,6 +16,18 @@ const recordCollection = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const confirmHubReceipt = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user!;
+  const result = await CodCollectionServices.confirmHubReceipt(req.body, user);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "COD Amount Confirmed As Received At Hub",
+    data: result,
+  });
+});
+
 const markRemitted = catchAsync(async (req: Request, res: Response) => {
   const codCollectionId = req.params.codCollectionId as string;
   const result = await CodCollectionServices.markRemitted(codCollectionId, req.body);
@@ -80,6 +92,7 @@ const getMySenderCODCollections = catchAsync(async (req: Request, res: Response)
 
 export const CodCollectionController = {
   recordCollection,
+   confirmHubReceipt,
   markRemitted,
   getAllCollections,
   getSingleCollection,

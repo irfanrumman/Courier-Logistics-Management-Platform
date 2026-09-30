@@ -10,6 +10,10 @@ model CodCollection {
   collectedByCourierManId String?
   collectedByCourierMan   CourierMan? @relation(fields: [collectedByCourierManId], references: [id], onDelete: SetNull)
 
+  submittedToHubAt       DateTime? 
+  receivedByHubManagerId String?
+  receivedByHubManager   HubManager? @relation(fields: [receivedByHubManagerId], references: [id], onDelete: SetNull)
+
   isRemittedToSender Boolean   @default(false)
   remittedAmount     Decimal?  @db.Decimal(10, 2)
   remittedAt         DateTime?

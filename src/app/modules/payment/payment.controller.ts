@@ -4,28 +4,7 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { PaymentServices } from "./payment.service";
 
-const initiatePayment = catchAsync(async (req: Request, res: Response) => {
-  const user = req.user!;
-  const result = await PaymentServices.initiatePayment(req.body, user);
 
-  sendResponse(res, {
-    statusCode: httpStatus.CREATED,
-    success: true,
-    message: "Payment Initiated Successfully",
-    data: result,
-  });
-});
-
-const confirmPayment = catchAsync(async (req: Request, res: Response) => {
-  const result = await PaymentServices.confirmPayment(req.body);
-
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "Payment Confirmed Successfully",
-    data: result,
-  });
-});
 
 const getMyPayments = catchAsync(async (req: Request, res: Response) => {
   const user = req.user!;
@@ -65,23 +44,10 @@ const getSinglePayment = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const refundPayment = catchAsync(async (req: Request, res: Response) => {
-  const paymentId = req.params.paymentId as string;
-  const result = await PaymentServices.refundPayment(paymentId, req.body);
-
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "Payment Refunded Successfully",
-    data: result,
-  });
-});
 
 export const PaymentController = {
-  initiatePayment,
-  confirmPayment,
   getMyPayments,
   getAllPayments,
   getSinglePayment,
-  refundPayment,
+
 };

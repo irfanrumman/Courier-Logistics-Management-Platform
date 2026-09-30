@@ -305,7 +305,9 @@ const getMe = async (user: IRequestUser) => {
         password: true
      },
     });
+
     if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
+
     return result;
   }
 
@@ -322,6 +324,7 @@ const getMe = async (user: IRequestUser) => {
         password: true
      },
     });
+
     if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
     return result;
   }
@@ -338,36 +341,28 @@ const getMe = async (user: IRequestUser) => {
          password: true 
         },
     });
+
     if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
     return result;
   }
 
   
   if (user.role === Role.CUSTOMER) {
-    const customer = await prisma.customer.findUnique({
-      where: {
-         userId: user.userId 
-        },
-     select:{
-        customerType: true,
-
-        }
-     } 
-    );
-
-  
-
-    const isMerchant = customer?.customerType === "MERCHANT";
-
-   
     const result = await prisma.user.findUnique({
       where: { id: user.userId },
-      include: isMerchant
-        ? { merchantProfile: true }
-        : { customer: true },
+      include: { customer: true },
       omit: { password: true },
     });
+    if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
+    return result;
+  }
 
+  if (user.role === Role.MERCHANT) {
+    const result = await prisma.user.findUnique({
+      where: { id: user.userId },
+      include: { merchantProfile: true },
+      omit: { password: true },
+    });
     if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
     return result;
   }

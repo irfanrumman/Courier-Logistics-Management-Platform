@@ -18,7 +18,7 @@ import { CustomerRoutes } from "./app/modules/customer/customer.route";
 import { ShipmentRoutes } from "./app/modules/shipment/shipment.route";
 import { PricingRuleRoutes } from "./app/modules/pricingrule/pricingrule.route";
 import { PaymentRoutes } from "./app/modules/payment/payment.route";
-import { CodCollectionRoutes } from "./app/modules/codcollections/codcollection.route";
+import { CodCollectionRoutes } from "./app/modules/codcollection/codcollection.route";
 
 
 const app: Application = express();

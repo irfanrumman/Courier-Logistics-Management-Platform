@@ -6,6 +6,7 @@ import { CodCollectionWhereInput } from "../../../generated/prisma/models";
 import {
   IRecordCollectionPayload,
   IMarkRemittedPayload,
+  IConfirmHubReceiptPayload,
 } from "./codcollection.validation";
 import { IQueryForCodCollection } from "./codcollection.interface";
 import { ShipmentStatus } from "../../../generated/prisma/enums";
@@ -84,9 +85,6 @@ if (payload.amountCollected <= 0) {
       },
     });
 
-    // Collection record হওয়ার সাথে সাথে shipment DELIVERED হয়ে যাওয়া স্বাভাবিক —
-    // কিন্তু status update আলাদা endpoint এ হয় (shipment.updateShipmentStatus), এখানে touch করছি না,
-    // যাতে দুটো module এর দায়িত্ব আলাদা থাকে (single responsibility)
 
     return newCollection;
   });
@@ -94,16 +92,89 @@ if (payload.amountCollected <= 0) {
   return collection;
 };
 
-// ==========================================================
-// ২. Admin/Hub Manager sender কে টাকা পাঠানোর পর remittance mark করা
-// ==========================================================
+
+const confirmHubReceipt = async (payload: IConfirmHubReceiptPayload, user: RequestUser) => {
+
+  const existingCollection = await prisma.codCollection.findUnique({
+    where: { id: payload.codCollectionId },
+    include: {
+      shipment: { select: { originHubId: true, destinationHubId: true } },
+    },
+
+  });
+
+  if (!existingCollection) {
+    throw new AppError(httpStatus.NOT_FOUND, "COD Collection Record Not Found");
+  }
+
+  if (existingCollection.submittedToHubAt) {
+    throw new AppError(httpStatus.CONFLICT, "This Collection Has Already Been Confirmed By A Hub");
+  }
+
+  const hubManager = await prisma.hubManager.findUnique({ 
+    where: { userId: user.userId } 
+  });
+
+ if (!hubManager || hubManager.isDeleted) {
+    throw new AppError(httpStatus.FORBIDDEN, "Hub Manager Profile Not Found");
+  }
+
+  if (!hubManager.hubId) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You are not assigned to any hub",
+    );
+  }
+
+  const { originHubId, destinationHubId } = existingCollection.shipment;
+
+  if (
+    originHubId !== hubManager.hubId &&
+    destinationHubId !== hubManager.hubId
+  ) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      "You can only confirm COD collections related to your hub",
+    );
+  }
+
+  const updatedCollection = await prisma.codCollection.update({
+    where: { id: payload.codCollectionId },
+    data: {
+      submittedToHubAt: new Date(),
+      receivedByHubManagerId: hubManager.id,
+      receivedAtHubId: hubManager.hubId
+    },
+    include: {
+      shipment: { select: { id: true, trackingNumber: true } },
+      collectedByCourierMan: { include: { user: { select: { id: true, name: true } } } },
+
+      receivedByHubManager: {
+        include: { hub: true }, 
+      },
+    },
+   
+  });
+
+  return updatedCollection;
+};
+
+
 const markRemitted = async (codCollectionId: string, payload: IMarkRemittedPayload) => {
+
   const existingCollection = await prisma.codCollection.findUnique({
     where: { id: codCollectionId },
   });
 
   if (!existingCollection) {
     throw new AppError(httpStatus.NOT_FOUND, "COD Collection Record Not Found");
+  }
+
+   if (!existingCollection.submittedToHubAt) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "This amount has not been submitted to and confirmed by the hub yet",
+    );
   }
 
   if (existingCollection.isRemittedToSender) {
@@ -271,6 +342,7 @@ const getMySenderCODCollections = async (query: IQueryForCodCollection, user: Re
 
 export const CodCollectionServices = {
   recordCollection,
+   confirmHubReceipt,
   markRemitted,
   getAllCollections,
   getSingleCollection,

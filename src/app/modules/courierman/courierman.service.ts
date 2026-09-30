@@ -527,7 +527,7 @@ const adminDeleteCourierMan = async (courierManId: string) => {
     return courierMan;
   });
 
-  return deletedCourierMan;
+  return null;
 };
 
 export const CourierManServices = {

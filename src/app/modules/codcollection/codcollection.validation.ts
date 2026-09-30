@@ -6,15 +6,24 @@ export const recordCollectionZodSchema = z.object({
   amountCollected: z.number().positive("Collected amount must be greater than 0"),
 });
 
-// Admin/Hub Manager merchant/sender কে টাকা পাঠানোর পর mark করবে
+export const confirmHubReceiptZodSchema = z.object({
+  codCollectionId: z.string().uuid("Invalid collection ID"),
+});
+
 export const markRemittedZodSchema = z.object({
   remittedAmount: z.number().positive("Remitted amount must be greater than 0"),
 });
 
+
+
+
+
 export type IRecordCollectionPayload = z.infer<typeof recordCollectionZodSchema>;
+export type IConfirmHubReceiptPayload = z.infer<typeof confirmHubReceiptZodSchema>;
 export type IMarkRemittedPayload = z.infer<typeof markRemittedZodSchema>;
 
 export const codCollectionValidation = {
   recordCollectionZodSchema,
+  confirmHubReceiptZodSchema,
   markRemittedZodSchema,
 };

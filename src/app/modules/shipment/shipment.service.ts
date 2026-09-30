@@ -1156,9 +1156,9 @@ const getMyShipments = async (user: RequestUser, query: IQueryForShipment) => {
   };
 };
 
-// ==========================================================
+
 //  Tracking number: shipment — public
-// ==========================================================
+
 const getShipmentByTrackingNumber = async (trackingNumber: string) => {
   const shipment = await prisma.shipment.findUnique({
     where: { trackingNumber },
@@ -1177,9 +1177,9 @@ const getShipmentByTrackingNumber = async (trackingNumber: string) => {
   return shipment;
 };
 
-// ==========================================================
+
 //  Admin/Hub Manager, mechant/customer: single shipment by ID
-// ==========================================================
+
 const getSingleShipmentById = async (shipmentId: string, user: RequestUser) => {
 
   const shipment = await prisma.shipment.findUnique({
@@ -1214,9 +1214,8 @@ const getSingleShipmentById = async (shipmentId: string, user: RequestUser) => {
   return shipment;
 };
 
-// ==========================================================
+
 //  Admin/Hub Manager: shipment list
-// ==========================================================
 
 const getAllShipments = async (query: IQueryForShipment, user: RequestUser) => {
 
@@ -1287,9 +1286,8 @@ const getAllShipments = async (query: IQueryForShipment, user: RequestUser) => {
   };
 };
 
-// ==========================================================
+
 // Status update — Hub Manager/Admin driven workflow progress
-// ==========================================================
 
 const updateShipmentStatus = async (
   shipmentId: string,
@@ -1404,9 +1402,9 @@ const updateShipmentStatus = async (
   return updatedShipment;
 };
 
-// ==========================================================
+
 //  Courier man assign 
-// ==========================================================
+
 const assignCourierMan = async (
   shipmentId: string,
   payload: IAssignCourierPayload,
@@ -1617,9 +1615,9 @@ const shipmentAsDelivered = async (
   return result;
 };
 
-// ==========================================================
+
 //  Parcel add/update/delete — in PENDING status
-// ==========================================================
+
 
 const addParcel = async (shipmentId: string, payload: IAddParcelPayload, user: RequestUser) => {
 
