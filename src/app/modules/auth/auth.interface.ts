@@ -5,18 +5,17 @@ export interface ILoginUserPayload {
 	password: string;
 }
 
-
 export interface IRegisterCustomerPayload {
-    name: string;
-    email: string;
-    password: string;
-    phone?: string;
-    gender?: Gender;
+	name: string;
+	email: string;
+	password: string;
+	phone?: string;
+	gender?: Gender;
 
-    defaultAddressLine?: string;
-    defaultDistrict?: string;
-    defaultThana?: string;
-    defaultPostalCode?: string;
+	defaultAddressLine?: string;
+	defaultDistrict?: string;
+	defaultThana?: string;
+	defaultPostalCode?: string;
 }
 
 export interface IVerifyEmailPayload {

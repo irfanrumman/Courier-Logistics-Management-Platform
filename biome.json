@@ -23,7 +23,7 @@
 		"rules": {
 			"preset": "recommended",
 			"suspicious": {
-				 "noExplicitAny" : "warn"
+				 "noExplicitAny" : "info"
 			},
 			"complexity": {
 				"noCommaOperator": "info"
@@ -42,10 +42,8 @@
 			"**",
 			"!src/genrated",
 			"!src/app/templates"
-		],
-		"supiscious": {
-			"noExplicitAny": "info"
-		}
+		]
+		
 	},
 	"javascript": {
 		"formatter": {

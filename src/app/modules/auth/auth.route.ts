@@ -23,11 +23,17 @@ router.post(
 	AuthController.loginUser,
 );
 
-
 router.get(
 	"/me",
-	auth(Role.ADMIN, Role.CUSTOMER, Role.MERCHANT, Role.COURIER_MAN, Role.HUB_MANAGER, Role.SUPER_ADMIN),
-	
+	auth(
+		Role.ADMIN,
+		Role.CUSTOMER,
+		Role.MERCHANT,
+		Role.COURIER_MAN,
+		Role.HUB_MANAGER,
+		Role.SUPER_ADMIN,
+	),
+
 	AuthController.getMe,
 );
 
@@ -49,11 +55,15 @@ router.post(
 
 router.post(
 	"/logout",
-	auth(Role.ADMIN, Role.CUSTOMER, Role.MERCHANT, Role.COURIER_MAN, Role.HUB_MANAGER, Role.SUPER_ADMIN),
+	auth(
+		Role.ADMIN,
+		Role.CUSTOMER,
+		Role.MERCHANT,
+		Role.COURIER_MAN,
+		Role.HUB_MANAGER,
+		Role.SUPER_ADMIN,
+	),
 	AuthController.logoutUser,
 );
 
-
 export const AuthRoutes = router;
-
-

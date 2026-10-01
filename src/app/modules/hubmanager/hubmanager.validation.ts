@@ -1,21 +1,25 @@
 import { z } from "zod";
 import { Gender, HubManagerStatus } from "../../../generated/prisma/enums";
 
- const applyAsHubManagerZodSchema = z.object({
-  user: z.object({
-    name: z.string().trim().min(2, "Name must be at least 2 characters long"),
-    email: z.email("Invalid email address").trim().toLowerCase(),
-    phone: z.string().trim().optional(),
-    gender: z.enum(Gender).optional(),
-  }),
-  hubManager: z.object({
-    bio: z.string().trim().max(1000, "Bio cannot exceed 1000 characters").optional(),
-    qualifications: z.string().trim().min(2, "Qualifications are required"),
-    experienceYears: z
-      .number()
-      .int("Experience years must be an integer")
-      .min(0, "Experience years cannot be negative"),
-  }),
+const applyAsHubManagerZodSchema = z.object({
+	user: z.object({
+		name: z.string().trim().min(2, "Name must be at least 2 characters long"),
+		email: z.email("Invalid email address").trim().toLowerCase(),
+		phone: z.string().trim().optional(),
+		gender: z.enum(Gender).optional(),
+	}),
+	hubManager: z.object({
+		bio: z
+			.string()
+			.trim()
+			.max(1000, "Bio cannot exceed 1000 characters")
+			.optional(),
+		qualifications: z.string().trim().min(2, "Qualifications are required"),
+		experienceYears: z
+			.number()
+			.int("Experience years must be an integer")
+			.min(0, "Experience years cannot be negative"),
+	}),
 });
 
 const hubManagerEmailVerifyZodSchema = z.object({
@@ -23,46 +27,58 @@ const hubManagerEmailVerifyZodSchema = z.object({
 	otp: z.string().length(6),
 });
 
-
 const UpdateHubManagerProfileValidationZodSchema = z.object({
-  user: z
-    .object({
-      name: z.string().trim().min(2, "Name must be at least 2 characters long").optional(),
-      phone: z.string().trim().optional(),
-      gender: z.enum(Gender).optional(),
-    })
-    .optional(),
+	user: z
+		.object({
+			name: z
+				.string()
+				.trim()
+				.min(2, "Name must be at least 2 characters long")
+				.optional(),
+			phone: z.string().trim().optional(),
+			gender: z.enum(Gender).optional(),
+		})
+		.optional(),
 
-  hubManager: z
-    .object({
-      bio: z.string().trim().max(1000, "Bio cannot exceed 1000 characters").optional(),
-      qualifications: z
-        .string()
-        .trim()
-        .min(2, "Qualifications must be at least 2 characters")
-        .optional(),
-      experienceYears: z
-        .number()
-        .int("Experience years must be an integer")
-        .min(0, "Experience years cannot be negative")
-        .optional(),
-    })
-    .optional(),
+	hubManager: z
+		.object({
+			bio: z
+				.string()
+				.trim()
+				.max(1000, "Bio cannot exceed 1000 characters")
+				.optional(),
+			qualifications: z
+				.string()
+				.trim()
+				.min(2, "Qualifications must be at least 2 characters")
+				.optional(),
+			experienceYears: z
+				.number()
+				.int("Experience years must be an integer")
+				.min(0, "Experience years cannot be negative")
+				.optional(),
+		})
+		.optional(),
 });
 
 export const adminUpdateHubManagerZodSchema = z.object({
-  hubId: z.string().uuid("Invalid hub ID").optional(),
-  status: z.enum(HubManagerStatus).optional(),
+	hubId: z.string().uuid("Invalid hub ID").optional(),
+	status: z.enum(HubManagerStatus).optional(),
 });
 
-
-export type IAdminUpdateHubManagerPayload = z.infer<typeof adminUpdateHubManagerZodSchema>;
-export type IApplyAsHubManagerPayload = z.infer<typeof applyAsHubManagerZodSchema>;
-export type IHubManagerEmailVerifyPayload = z.infer<typeof hubManagerEmailVerifyZodSchema>;
+export type IAdminUpdateHubManagerPayload = z.infer<
+	typeof adminUpdateHubManagerZodSchema
+>;
+export type IApplyAsHubManagerPayload = z.infer<
+	typeof applyAsHubManagerZodSchema
+>;
+export type IHubManagerEmailVerifyPayload = z.infer<
+	typeof hubManagerEmailVerifyZodSchema
+>;
 
 export const hubManagerValidation = {
-applyAsHubManagerZodSchema,
-hubManagerEmailVerifyZodSchema,
-UpdateHubManagerProfileValidationZodSchema,
-adminUpdateHubManagerZodSchema
-}
+	applyAsHubManagerZodSchema,
+	hubManagerEmailVerifyZodSchema,
+	UpdateHubManagerProfileValidationZodSchema,
+	adminUpdateHubManagerZodSchema,
+};

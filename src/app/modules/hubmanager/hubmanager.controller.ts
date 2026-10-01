@@ -5,15 +5,11 @@ import { sendResponse } from "../../utils/sendResponse";
 import { HubManagerServices } from "./hubmanager.service";
 import { HubManagerVerificationStatus } from "../../../generated/prisma/enums";
 
-
-
 const applyAsHubManager = catchAsync(async (req: Request, res: Response) => {
-
 	const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 	console.log({ files });
 	const resume = files?.["resume"] ? files["resume"][0] : null;
 	const additionalFiles = files?.["additionalFiles"] || [];
-
 
 	const payload = req.body;
 
@@ -30,49 +26,47 @@ const applyAsHubManager = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 
+const verifyHubManagerEmail = catchAsync(
+	async (req: Request, res: Response) => {
+		const payload = req.body;
 
-const verifyHubManagerEmail = catchAsync(async (req: Request, res: Response) => {
-	
-	const payload = req.body;
-
-	const result = await HubManagerServices.verifyHubManagerEmail(payload);
-	sendResponse(res, {
-		statusCode: httpStatus.OK,
-		success: true,
-		message: "Hub Manager Email Verified Successfully",
-		data: result,
-	});
-});
+		const result = await HubManagerServices.verifyHubManagerEmail(payload);
+		sendResponse(res, {
+			statusCode: httpStatus.OK,
+			success: true,
+			message: "Hub Manager Email Verified Successfully",
+			data: result,
+		});
+	},
+);
 
 const approveHubManager = catchAsync(async (req: Request, res: Response) => {
-	
 	const payload = req.body;
-	const user = req.user!
+	const user = req.user!;
 
 	const result = await HubManagerServices.approveHubManager(payload, user);
-	 const isApproved = result.verificationStatus === HubManagerVerificationStatus.APPROVED;
+	const isApproved =
+		result.verificationStatus === HubManagerVerificationStatus.APPROVED;
 
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
 		message: isApproved
-      ? "Hub Manager application has been approved"
-      : "Hub Manager application has been rejected",
+			? "Hub Manager application has been approved"
+			: "Hub Manager application has been rejected",
 		data: result,
 	});
 });
 
 const getAllHubManagers = catchAsync(async (req: Request, res: Response) => {
-	
-
-	const {data, meta} = await HubManagerServices.getAllHubManagers(req.query)
+	const { data, meta } = await HubManagerServices.getAllHubManagers(req.query);
 
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
 		message: "Hub Managers Retrieved Successfully",
 		data: data,
-		meta : meta,
+		meta: meta,
 	});
 });
 
@@ -81,7 +75,10 @@ const updateHubManagerProfile = catchAsync(
 		const payload = req.body;
 		const user = req.user!;
 
-		const result = await HubManagerServices.updateHubManagerProfile(payload, user);
+		const result = await HubManagerServices.updateHubManagerProfile(
+			payload,
+			user,
+		);
 		sendResponse(res, {
 			statusCode: httpStatus.OK,
 			success: true,
@@ -91,15 +88,12 @@ const updateHubManagerProfile = catchAsync(
 	},
 );
 
-
 const getSingleHubManagerById = catchAsync(
 	async (req: Request, res: Response) => {
+		const hubManagerId = req.params.hubManagerId as string;
 
-		const hubManagerId = req.params.hubManagerId as string
-
-		const result = await HubManagerServices.getSingleHubManagerById(
-			hubManagerId
-		);
+		const result =
+			await HubManagerServices.getSingleHubManagerById(hubManagerId);
 		sendResponse(res, {
 			statusCode: httpStatus.OK,
 			success: true,
@@ -109,33 +103,39 @@ const getSingleHubManagerById = catchAsync(
 	},
 );
 
-const adminUpdateHubManager = catchAsync(async (req: Request, res: Response) => {
-  const hubManagerId = req.params.hubManagerId as string;
-  const payload = req.body;
+const adminUpdateHubManager = catchAsync(
+	async (req: Request, res: Response) => {
+		const hubManagerId = req.params.hubManagerId as string;
+		const payload = req.body;
 
-  const result = await HubManagerServices.adminUpdateHubManager(hubManagerId, payload);
+		const result = await HubManagerServices.adminUpdateHubManager(
+			hubManagerId,
+			payload,
+		);
 
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "Hub Manager Updated Successfully",
-    data: result,
-  });
-});
+		sendResponse(res, {
+			statusCode: httpStatus.OK,
+			success: true,
+			message: "Hub Manager Updated Successfully",
+			data: result,
+		});
+	},
+);
 
+const adminDeleteHubManager = catchAsync(
+	async (req: Request, res: Response) => {
+		const hubManagerId = req.params.hubManagerId as string;
 
-const adminDeleteHubManager = catchAsync(async (req: Request, res: Response) => {
-  const hubManagerId = req.params.hubManagerId as string;
+		await HubManagerServices.adminDeleteHubManager(hubManagerId);
 
- await HubManagerServices.adminDeleteHubManager(hubManagerId);
-
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "Hub Manager Deleted Successfully",
-    data: null,
-  });
-});
+		sendResponse(res, {
+			statusCode: httpStatus.OK,
+			success: true,
+			message: "Hub Manager Deleted Successfully",
+			data: null,
+		});
+	},
+);
 
 export const HubManagerController = {
 	applyAsHubManager,
@@ -145,5 +145,5 @@ export const HubManagerController = {
 	updateHubManagerProfile,
 	getSingleHubManagerById,
 	adminUpdateHubManager,
-	adminDeleteHubManager
+	adminDeleteHubManager,
 };

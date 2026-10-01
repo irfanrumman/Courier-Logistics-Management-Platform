@@ -1,7 +1,7 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
-import express, { Application, Request, Response } from "express";
+import express, { type Application, type Request, type Response } from "express";
 import httpStatus from "http-status";
 import config from "./app/config";
 import helmet from "helmet";
@@ -20,9 +20,7 @@ import { PricingRuleRoutes } from "./app/modules/pricingrule/pricingrule.route";
 import { PaymentRoutes } from "./app/modules/payment/payment.route";
 import { CodCollectionRoutes } from "./app/modules/codcollection/codcollection.route";
 
-
 const app: Application = express();
-
 
 //security-related HTTP headers
 app.use(helmet());
@@ -34,15 +32,17 @@ app.use(
 	}),
 );
 
-app.use("/api", rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: {
-        success: false,
-        message: "Too many requests, please try again later",
-        errors: []
-    }
-})
+app.use(
+	"/api",
+	rateLimit({
+		windowMs: 15 * 60 * 1000,
+		max: 100,
+		message: {
+			success: false,
+			message: "Too many requests, please try again later",
+			errors: [],
+		},
+	}),
 );
 // Enable URL-encoded form data parsing
 app.use(express.urlencoded({ extended: true }));
@@ -50,8 +50,6 @@ app.use(express.urlencoded({ extended: true }));
 // Middleware to parse JSON bodies
 app.use(express.json());
 app.use(cookieParser());
-
-
 
 //API
 app.use("/api/v1/auth", AuthRoutes);
@@ -66,8 +64,6 @@ app.use("/api/v1/shipment", ShipmentRoutes);
 app.use("/api/v1/payment", PaymentRoutes);
 app.use("/api/v1/codcollection", CodCollectionRoutes);
 
-
-
 // Basic route
 app.get("/", async (req: Request, res: Response) => {
 	res.status(httpStatus.OK).json({
@@ -79,6 +75,5 @@ app.get("/", async (req: Request, res: Response) => {
 //globalError & notFound
 app.use(globalErrorHandler);
 app.use(notFound);
-
 
 export default app;

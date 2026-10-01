@@ -6,9 +6,7 @@ import { sendResponse } from "../../utils/sendResponse";
 import type { IRequestUser } from "./auth.interface";
 import { AuthService } from "./auth.service";
 
-
 const registerCustomer = catchAsync(async (req: Request, res: Response) => {
-
 	const payload = req.body;
 
 	await AuthService.registerCustomer(payload);
@@ -20,7 +18,6 @@ const registerCustomer = catchAsync(async (req: Request, res: Response) => {
 		data: null,
 	});
 });
-
 
 const verifyCustomerEmail = catchAsync(async (req: Request, res: Response) => {
 	const payload = req.body;
@@ -55,8 +52,7 @@ const verifyCustomerEmail = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 
-
- const loginUser = catchAsync(async (req: Request, res: Response) => {
+const loginUser = catchAsync(async (req: Request, res: Response) => {
 	const payload = req.body;
 	const result = await AuthService.loginUser(payload);
 	const { accessToken, refreshToken } = result;
@@ -85,12 +81,14 @@ const verifyCustomerEmail = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 
-
 const getMe = catchAsync(async (req: Request, res: Response) => {
 	const user = req.user as unknown as IRequestUser;
 
 	if (!user) {
-		throw new AppError(httpStatus.UNAUTHORIZED, "User information is missing in the request");
+		throw new AppError(
+			httpStatus.UNAUTHORIZED,
+			"User information is missing in the request",
+		);
 	}
 
 	const result = await AuthService.getMe(user);
@@ -101,8 +99,6 @@ const getMe = catchAsync(async (req: Request, res: Response) => {
 		data: result,
 	});
 });
-
-
 
 const refreshToken = catchAsync(async (req: Request, res: Response) => {
 	if (!req.cookies.refreshToken) {
@@ -135,8 +131,6 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 
-
-
 const googleLogin = catchAsync(async (req: Request, res: Response) => {
 	const payload = req.body;
 
@@ -168,7 +162,6 @@ const googleLogin = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 
-
 const forgotPassword = catchAsync(async (req: Request, res: Response) => {
 	const payload = req.body;
 
@@ -181,7 +174,6 @@ const forgotPassword = catchAsync(async (req: Request, res: Response) => {
 		data: null,
 	});
 });
-
 
 const resetPassword = catchAsync(async (req: Request, res: Response) => {
 	const payload = req.body;
@@ -197,30 +189,29 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
 });
 
 const logoutUser = catchAsync(async (req: Request, res: Response) => {
-  const result = await AuthService.logoutUser();
+	const result = await AuthService.logoutUser();
 
-  res.clearCookie("accessToken", {
-    httpOnly: true,
-    secure: false,
-    sameSite: "none",
-    // path: "/",
-  });
+	res.clearCookie("accessToken", {
+		httpOnly: true,
+		secure: false,
+		sameSite: "none",
+		// path: "/",
+	});
 
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: false,
-    sameSite: "none",
-    // path: "/",
-  });
+	res.clearCookie("refreshToken", {
+		httpOnly: true,
+		secure: false,
+		sameSite: "none",
+		// path: "/",
+	});
 
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: result.message,
-    data: null,
-  });
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: result.message,
+		data: null,
+	});
 });
-
 
 export const AuthController = {
 	registerCustomer,
@@ -231,5 +222,5 @@ export const AuthController = {
 	googleLogin,
 	forgotPassword,
 	resetPassword,
-	logoutUser
+	logoutUser,
 };

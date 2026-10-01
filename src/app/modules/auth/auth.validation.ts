@@ -17,11 +17,9 @@ const customerRegistrationZodSchema = z.object({
 	gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
 	phone: z.string().trim().optional(),
 	defaultAddressLine: z.string().trim().optional(),
-	defaultDistrict : z.string().trim().optional(),
+	defaultDistrict: z.string().trim().optional(),
 	defaultThana: z.string().trim().optional(),
-	defaultPostalCode : z.string().trim().optional(),
-			
-	
+	defaultPostalCode: z.string().trim().optional(),
 });
 const customerEmailVerifyZodSchema = z.object({
 	email: z.email("Not email!!"),

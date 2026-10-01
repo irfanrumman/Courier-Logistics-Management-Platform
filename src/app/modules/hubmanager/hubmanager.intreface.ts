@@ -1,5 +1,7 @@
-import { Gender, HubManagerVerificationStatus } from "../../../generated/prisma/enums";
-
+import type {
+	Gender,
+	HubManagerVerificationStatus,
+} from "../../../generated/prisma/enums";
 
 // export interface IApplyAsHubManagerPayload {
 //     user: {
@@ -18,28 +20,26 @@ import { Gender, HubManagerVerificationStatus } from "../../../generated/prisma/
 //     };
 // }
 
-
 export interface IVerifyHubManagerEmailPayload {
-    email: string;
-    otp: string;
+	email: string;
+	otp: string;
 }
 
-
 export interface IApproveHubManagerPayload {
-     hubManagerId: string;
-    verificationStatus: HubManagerVerificationStatus;
-    rejectionReason: string;
+	hubManagerId: string;
+	verificationStatus: HubManagerVerificationStatus;
+	rejectionReason: string;
 }
 
 export interface IUpdateHubManagerProfilePayload {
-  user?: {
-    name?: string;
-    phone?: string;
-    gender?: Gender;
-  };
-  hubManager?: {
-    bio?: string;
-    qualifications?: string;
-    experienceYears?: number;
-  };
+	user?: {
+		name?: string;
+		phone?: string;
+		gender?: Gender;
+	};
+	hubManager?: {
+		bio?: string;
+		qualifications?: string;
+		experienceYears?: number;
+	};
 }

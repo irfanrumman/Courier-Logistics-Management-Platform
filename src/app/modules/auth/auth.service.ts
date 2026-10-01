@@ -11,7 +11,7 @@ import {
 	UserStatus,
 } from "../../../generated/prisma/enums";
 import config from "../../config";
-import {googleClient} from "../../lib/googleAuth"
+import { googleClient } from "../../lib/googleAuth";
 import { transporter } from "../../lib/nodemailer";
 import { prisma } from "../../lib/prisma";
 import { redisClient } from "../../lib/redis";
@@ -27,15 +27,17 @@ import type {
 	IVerifyEmailPayload,
 } from "./auth.interface";
 
-
-
 const registerCustomer = async (payload: IRegisterCustomerPayload) => {
-	const { name, password, phone, gender,
-          defaultAddressLine,
-    defaultDistrict,
-    defaultThana,
-    defaultPostalCode,
-      } = payload;
+	const {
+		name,
+		password,
+		phone,
+		gender,
+		defaultAddressLine,
+		defaultDistrict,
+		defaultThana,
+		defaultPostalCode,
+	} = payload;
 
 	const email = payload.email.trim().toLowerCase();
 
@@ -44,7 +46,10 @@ const registerCustomer = async (payload: IRegisterCustomerPayload) => {
 	});
 
 	if (isUserExists) {
-		throw new AppError(httpStatus.CONFLICT, "User with this email already exists");
+		throw new AppError(
+			httpStatus.CONFLICT,
+			"User with this email already exists",
+		);
 	}
 
 	const hashedPassword = await bcrypt.hash(password, 8);
@@ -68,11 +73,11 @@ const registerCustomer = async (payload: IRegisterCustomerPayload) => {
 		email,
 		password: hashedPassword,
 		phone,
-        gender,
-        defaultAddressLine,
-        defaultDistrict,
-        defaultThana,
-        defaultPostalCode,
+		gender,
+		defaultAddressLine,
+		defaultDistrict,
+		defaultThana,
+		defaultPostalCode,
 	};
 
 	await redisClient.set(
@@ -116,7 +121,6 @@ const verifyCustomerEmail = async (payload: IVerifyEmailPayload) => {
 		where: { email },
 	});
 
-
 	if (isUserExist?.status === "SUSPENDED") {
 		throw new AppError(httpStatus.FORBIDDEN, "User is Suspended");
 	}
@@ -151,8 +155,9 @@ const verifyCustomerEmail = async (payload: IVerifyEmailPayload) => {
 		throw new AppError(httpStatus.NOT_FOUND, "Patient Doesn't Exist");
 	}
 
-	const customerPayload: IRegisterCustomerPayload = JSON.parse(redisCustomerData);
-    console.log(customerPayload)
+	const customerPayload: IRegisterCustomerPayload =
+		JSON.parse(redisCustomerData);
+	console.log(customerPayload);
 
 	const createdUser = await prisma.user.create({
 		data: {
@@ -160,18 +165,18 @@ const verifyCustomerEmail = async (payload: IVerifyEmailPayload) => {
 			email: customerPayload.email,
 			password: customerPayload.password,
 			role: Role.CUSTOMER,
-            gender: customerPayload.gender,
-            phone: customerPayload.phone,
+			gender: customerPayload.gender,
+			phone: customerPayload.phone,
 			status: UserStatus.ACTIVE,
 			emailVerified: true,
 			customer: {
 				create: {
-                    name: customerPayload.name,
-                    email: customerPayload.email,
-					defaultAddressLine: customerPayload.defaultAddressLine ,
+					name: customerPayload.name,
+					email: customerPayload.email,
+					defaultAddressLine: customerPayload.defaultAddressLine,
 					defaultDistrict: customerPayload.defaultDistrict,
 					defaultPostalCode: customerPayload.defaultPostalCode,
-                    defaultThana: customerPayload.defaultThana,
+					defaultThana: customerPayload.defaultThana,
 				},
 			},
 		},
@@ -180,7 +185,6 @@ const verifyCustomerEmail = async (payload: IVerifyEmailPayload) => {
 	});
 
 	await redisClient.del(customerRegistrationKey);
-
 
 	const tempatePath = path.join(
 		process.cwd(),
@@ -201,13 +205,12 @@ const verifyCustomerEmail = async (payload: IVerifyEmailPayload) => {
 	});
 
 	const { customer, ...user } = createdUser;
-    
 
 	const jwtPayload = {
 		userId: user.id,
 		name: user.name,
 		email: user.email,
-        phone: user.phone,
+		phone: user.phone,
 		role: user.role,
 	};
 
@@ -232,7 +235,6 @@ const verifyCustomerEmail = async (payload: IVerifyEmailPayload) => {
 };
 
 const loginUser = async (payload: ILoginUserPayload) => {
-
 	const { password } = payload;
 	const email = payload.email.trim().toLowerCase();
 
@@ -241,8 +243,7 @@ const loginUser = async (payload: ILoginUserPayload) => {
 	});
 
 	if (!user) {
-	
-		throw new AppError(httpStatus.NOT_FOUND, "User Not Found")
+		throw new AppError(httpStatus.NOT_FOUND, "User Not Found");
 	}
 
 	if (user.status === UserStatus.SUSPENDED) {
@@ -295,88 +296,80 @@ const loginUser = async (payload: ILoginUserPayload) => {
 };
 
 const getMe = async (user: IRequestUser) => {
+	if (user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN) {
+		const result = await prisma.user.findUnique({
+			where: {
+				id: user.userId,
+			},
+			omit: {
+				password: true,
+			},
+		});
 
-     if (user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN) {
-    const result = await prisma.user.findUnique({
-      where: { 
-        id: user.userId 
-    },
-      omit: { 
-        password: true
-     },
-    });
+		if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
 
-    if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
+		return result;
+	}
 
-    return result;
-  }
+	if (user.role === Role.COURIER_MAN) {
+		const result = await prisma.user.findUnique({
+			where: {
+				id: user.userId,
+			},
+			include: {
+				courierMan: true,
+			},
+			omit: {
+				password: true,
+			},
+		});
 
-  
-  if (user.role === Role.COURIER_MAN) {
-    const result = await prisma.user.findUnique({
-      where: { 
-        id: user.userId 
-    },
-      include: { 
-        courierMan: true 
-    },
-      omit: { 
-        password: true
-     },
-    });
+		if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
+		return result;
+	}
 
-    if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
-    return result;
-  }
+	if (user.role === Role.HUB_MANAGER) {
+		const result = await prisma.user.findUnique({
+			where: {
+				id: user.userId,
+			},
+			include: {
+				hubManager: true,
+			},
+			omit: {
+				password: true,
+			},
+		});
 
-  if (user.role === Role.HUB_MANAGER) {
-    const result = await prisma.user.findUnique({
-      where: { 
-        id: user.userId
-     },
-      include: {
-         hubManager: true
-         },
-      omit: {
-         password: true 
-        },
-    });
+		if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
 
-    if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
+		return result;
+	}
 
-    return result;
-  }
+	if (user.role === Role.CUSTOMER) {
+		const result = await prisma.user.findUnique({
+			where: { id: user.userId },
+			include: { customer: true },
+			omit: { password: true },
+		});
+		if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
 
-  
-  if (user.role === Role.CUSTOMER) {
-    const result = await prisma.user.findUnique({
-      where: { id: user.userId },
-      include: { customer: true },
-      omit: { password: true },
-    });
-    if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
+		return result;
+	}
 
-    return result;
-  }
+	if (user.role === Role.MERCHANT) {
+		const result = await prisma.user.findUnique({
+			where: { id: user.userId },
+			include: { merchantProfile: true },
+			omit: { password: true },
+		});
+		if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
 
-  if (user.role === Role.MERCHANT) {
-    const result = await prisma.user.findUnique({
-      where: { id: user.userId },
-      include: { merchantProfile: true },
-      omit: { password: true },
-    });
-    if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
+		return result;
+	}
 
-    return result;
-  }
-
-  throw new AppError(httpStatus.BAD_REQUEST, "Unknown user role");
-
-  
-  
+	throw new AppError(httpStatus.BAD_REQUEST, "Unknown user role");
 };
-
-
 
 const refreshToken = async (token: string) => {
 	const verifiedRefreshToken = jwtUtils.verifyToken(
@@ -400,7 +393,10 @@ const refreshToken = async (token: string) => {
 	});
 
 	if (!user || user.isDeleted || user.status !== UserStatus.ACTIVE) {
-		throw new AppError(httpStatus.UNAUTHORIZED, "User is inactive or not found");
+		throw new AppError(
+			httpStatus.UNAUTHORIZED,
+			"User is inactive or not found",
+		);
 	}
 
 	const jwtPayload = {
@@ -439,18 +435,27 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 		googleIdTokenPayload = ticket.getPayload();
 	} catch (error) {
 		console.log("Google ID Token Verification Failed", error);
-		throw new AppError(httpStatus.UNAUTHORIZED, "Invalid Or Expired Google Id Token");
+		throw new AppError(
+			httpStatus.UNAUTHORIZED,
+			"Invalid Or Expired Google Id Token",
+		);
 	}
 
 	if (!googleIdTokenPayload) {
-		throw new AppError(httpStatus.UNAUTHORIZED, "Invalid Or Expired Google Id Token");
+		throw new AppError(
+			httpStatus.UNAUTHORIZED,
+			"Invalid Or Expired Google Id Token",
+		);
 	}
 
 	if (!googleIdTokenPayload.email) {
 		throw new AppError(httpStatus.BAD_REQUEST, "Google Email Not Found");
 	}
 	if (!googleIdTokenPayload.name) {
-		throw new AppError(httpStatus.BAD_REQUEST, "Google Email User Name Not Found");
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Google Email User Name Not Found",
+		);
 	}
 
 	const ifCustomerExistWithGoogleAuth = await prisma.user.findUnique({
@@ -712,9 +717,9 @@ const resetPassword = async (payload: IResetPasswordPayload) => {
 };
 
 const logoutUser = async () => {
-  return {
-    message: "Logged out successfully",
-  };
+	return {
+		message: "Logged out successfully",
+	};
 };
 
 export const AuthService = {
@@ -722,9 +727,9 @@ export const AuthService = {
 	verifyCustomerEmail,
 	loginUser,
 	getMe,
-    refreshToken,
+	refreshToken,
 	googleLogin,
 	forgotPassword,
 	resetPassword,
-	logoutUser
+	logoutUser,
 };

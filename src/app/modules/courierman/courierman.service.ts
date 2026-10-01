@@ -5,526 +5,603 @@ import ejs from "ejs";
 import httpStatus from "http-status";
 import path from "path";
 import config from "../../config";
-import { IQuery, IQueryForCourier } from "../../interfaces";
+import { IQuery, type IQueryForCourier } from "../../interfaces";
 import { cloudinary } from "../../lib/cloudinary";
 import { transporter } from "../../lib/nodemailer";
 import { prisma } from "../../lib/prisma";
 import { redisClient } from "../../lib/redis";
-import { RequestUser } from "../../middleware/checkAuth";
+import type { RequestUser } from "../../middleware/checkAuth";
 import { AppError } from "../../utils/AppError";
-import { CourierManAssignType, CourierManVerificationStatus, Role, UserStatus } from "../../../generated/prisma/enums";
-import { generateSystemPassword } from "../../utils/generateSystemPassword";
-import { CourierManWhereInput } from "../../../generated/prisma/models";
 import {
-  IApplyAsCourierManPayload,
-  ICourierManEmailVerifyPayload,
-  IApproveCourierManPayload,
-  IUpdateCourierManProfilePayload,
-  IToggleAvailabilityPayload,
-  IUpdateLocationPayload,
-  IAdminUpdateCourierManPayload,
+	CourierManAssignType,
+	CourierManVerificationStatus,
+	Role,
+	UserStatus,
+} from "../../../generated/prisma/enums";
+import { generateSystemPassword } from "../../utils/generateSystemPassword";
+import type { CourierManWhereInput } from "../../../generated/prisma/models";
+import type {
+	IApplyAsCourierManPayload,
+	ICourierManEmailVerifyPayload,
+	IApproveCourierManPayload,
+	IUpdateCourierManProfilePayload,
+	IToggleAvailabilityPayload,
+	IUpdateLocationPayload,
+	IAdminUpdateCourierManPayload,
 } from "./courierman.validation";
 
-
-
 const applyAsCourierMan = async (payload: IApplyAsCourierManPayload) => {
-  const isUserExists = await prisma.user.findUnique({
-    where: { email: payload.user.email },
-  });
+	const isUserExists = await prisma.user.findUnique({
+		where: { email: payload.user.email },
+	});
 
-  if (isUserExists) {
-    throw new AppError(httpStatus.CONFLICT, "User already exists with this email");
-  }
+	if (isUserExists) {
+		throw new AppError(
+			httpStatus.CONFLICT,
+			"User already exists with this email",
+		);
+	}
 
-  if (payload.courierMan.vehicleNumber) {
-    const existingVehicle = await prisma.courierMan.findUnique({
-      where: { vehicleNumber: payload.courierMan.vehicleNumber },
-    });
-    if (existingVehicle) {
-      throw new AppError(httpStatus.CONFLICT, "This vehicle number is already registered");
-    }
-  }
+	if (payload.courierMan.vehicleNumber) {
+		const existingVehicle = await prisma.courierMan.findUnique({
+			where: { vehicleNumber: payload.courierMan.vehicleNumber },
+		});
+		if (existingVehicle) {
+			throw new AppError(
+				httpStatus.CONFLICT,
+				"This vehicle number is already registered",
+			);
+		}
+	}
 
-  if (payload.courierMan.licenseNumber) {
-    const existingLicense = await prisma.courierMan.findUnique({
-      where: { licenseNumber: payload.courierMan.licenseNumber },
-    });
-    if (existingLicense) {
-      throw new AppError(httpStatus.CONFLICT, "This license number is already registered");
-    }
-  }
+	if (payload.courierMan.licenseNumber) {
+		const existingLicense = await prisma.courierMan.findUnique({
+			where: { licenseNumber: payload.courierMan.licenseNumber },
+		});
+		if (existingLicense) {
+			throw new AppError(
+				httpStatus.CONFLICT,
+				"This license number is already registered",
+			);
+		}
+	}
 
-  const courierManApplication = await prisma.user.create({
-    data: {
-      name: payload.user.name,
-      email: payload.user.email,
-      phone: payload.user.phone,
-      gender: payload.user.gender,
-      role: Role.COURIER_MAN,
-      courierMan: {
-        create: {
-          courierManAssignType: payload.courierMan.courierManAssignType,
-          vehicleType: payload.courierMan.vehicleType,
-          vehicleNumber: payload.courierMan.vehicleNumber,
-          licenseNumber: payload.courierMan.licenseNumber,
-          maxCapacity: payload.courierMan.maxCapacity,
-          bio: payload.courierMan.bio,
-          qualifications: payload.courierMan.qualifications,
-          experienceYears: payload.courierMan.experienceYears,
-        },
-      },
-    },
-    include: { courierMan: true },
-  });
+	const courierManApplication = await prisma.user.create({
+		data: {
+			name: payload.user.name,
+			email: payload.user.email,
+			phone: payload.user.phone,
+			gender: payload.user.gender,
+			role: Role.COURIER_MAN,
+			courierMan: {
+				create: {
+					courierManAssignType: payload.courierMan.courierManAssignType,
+					vehicleType: payload.courierMan.vehicleType,
+					vehicleNumber: payload.courierMan.vehicleNumber,
+					licenseNumber: payload.courierMan.licenseNumber,
+					maxCapacity: payload.courierMan.maxCapacity,
+					bio: payload.courierMan.bio,
+					qualifications: payload.courierMan.qualifications,
+					experienceYears: payload.courierMan.experienceYears,
+				},
+			},
+		},
+		include: { courierMan: true },
+	});
 
-  const expirationSeconds = 60 * 60;
-  const otpKey = `courierMan-application-otp:${payload.user.email}`;
-  const otpValue = crypto.randomInt(100000, 1000000).toString();
+	const expirationSeconds = 60 * 60;
+	const otpKey = `courierMan-application-otp:${payload.user.email}`;
+	const otpValue = crypto.randomInt(100000, 1000000).toString();
 
-  await redisClient.set(otpKey, otpValue, {
-    expiration: { type: "EX", value: expirationSeconds },
-  });
+	await redisClient.set(otpKey, otpValue, {
+		expiration: { type: "EX", value: expirationSeconds },
+	});
 
-  const templatePath = path.join(process.cwd(), "src/app/templates/otp-for-one-hour.ejs");
-  const html = await ejs.renderFile(templatePath, {
-    name: payload.user.name,
-    email: payload.user.email,
-    otp: otpValue,
-    expirationMinutes: expirationSeconds / 60,
-  });
+	const templatePath = path.join(
+		process.cwd(),
+		"src/app/templates/otp-for-one-hour.ejs",
+	);
+	const html = await ejs.renderFile(templatePath, {
+		name: payload.user.name,
+		email: payload.user.email,
+		otp: otpValue,
+		expirationMinutes: expirationSeconds / 60,
+	});
 
-  await transporter.sendMail({
-    from: { name: "Courier & Logistics Management", address: config.email_sender },
-    to: payload.user.email,
-    subject: "Courier Man Application - Email Verification",
-    html,
-  });
+	await transporter.sendMail({
+		from: {
+			name: "Courier & Logistics Management",
+			address: config.email_sender,
+		},
+		to: payload.user.email,
+		subject: "Courier Man Application - Email Verification",
+		html,
+	});
 
-  return courierManApplication;
+	return courierManApplication;
 };
 
-const verifyCourierManEmail = async (payload: ICourierManEmailVerifyPayload) => {
-  const otp = payload.otp;
-  const email = payload.email.trim().toLowerCase();
+const verifyCourierManEmail = async (
+	payload: ICourierManEmailVerifyPayload,
+) => {
+	const otp = payload.otp;
+	const email = payload.email.trim().toLowerCase();
 
-  const existingUser = await prisma.user.findUnique({
-    where: { email, role: Role.COURIER_MAN },
-  });
+	const existingUser = await prisma.user.findUnique({
+		where: { email, role: Role.COURIER_MAN },
+	});
 
-  if (!existingUser) {
-    throw new AppError(
-      httpStatus.NOT_FOUND,
-      "Courier Man Application Not Found. Please Apply Again.",
-    );
-  }
+	if (!existingUser) {
+		throw new AppError(
+			httpStatus.NOT_FOUND,
+			"Courier Man Application Not Found. Please Apply Again.",
+		);
+	}
 
-  if (existingUser.emailVerified) {
-    throw new AppError(httpStatus.CONFLICT, "Email Already Verified");
-  }
+	if (existingUser.emailVerified) {
+		throw new AppError(httpStatus.CONFLICT, "Email Already Verified");
+	}
 
-  const otpKey = `courierMan-application-otp:${email}`;
-  const redisOtp = await redisClient.get(otpKey);
+	const otpKey = `courierMan-application-otp:${email}`;
+	const redisOtp = await redisClient.get(otpKey);
 
-  if (!redisOtp) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      "OTP Expired. Your Application Window Has Closed, Please Apply Again.",
-    );
-  }
+	if (!redisOtp) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"OTP Expired. Your Application Window Has Closed, Please Apply Again.",
+		);
+	}
 
-  if (redisOtp !== otp) {
-    throw new AppError(httpStatus.BAD_REQUEST, "OTP Does Not Match");
-  }
+	if (redisOtp !== otp) {
+		throw new AppError(httpStatus.BAD_REQUEST, "OTP Does Not Match");
+	}
 
-  await redisClient.del(otpKey);
+	await redisClient.del(otpKey);
 
-  const verifiedUser = await prisma.user.update({
-    where: { id: existingUser.id },
-    data: { emailVerified: true },
-    omit: { password: true },
-    include: { courierMan: true },
-  });
+	const verifiedUser = await prisma.user.update({
+		where: { id: existingUser.id },
+		data: { emailVerified: true },
+		omit: { password: true },
+		include: { courierMan: true },
+	});
 
-  return verifiedUser;
+	return verifiedUser;
 };
 
-const approveCourierMan = async (payload: IApproveCourierManPayload, reviewer: RequestUser) => {
-  const { courierManId, verificationStatus, rejectionReason } = payload;
+const approveCourierMan = async (
+	payload: IApproveCourierManPayload,
+	reviewer: RequestUser,
+) => {
+	const { courierManId, verificationStatus, rejectionReason } = payload;
 
-  const existingCourierMan = await prisma.courierMan.findUnique({
-    where: { id: courierManId },
-    include: { user: true },
-  });
+	const existingCourierMan = await prisma.courierMan.findUnique({
+		where: { id: courierManId },
+		include: { user: true },
+	});
 
-  if (!existingCourierMan) {
-    throw new AppError(httpStatus.NOT_FOUND, "Courier Man Application Not Found");
-  }
+	if (!existingCourierMan) {
+		throw new AppError(
+			httpStatus.NOT_FOUND,
+			"Courier Man Application Not Found",
+		);
+	}
 
-  if (existingCourierMan.isDeleted) {
-    throw new AppError(httpStatus.GONE, "Courier Man Application Has Been Deleted");
-  }
+	if (existingCourierMan.isDeleted) {
+		throw new AppError(
+			httpStatus.GONE,
+			"Courier Man Application Has Been Deleted",
+		);
+	}
 
-  if (!existingCourierMan.user.emailVerified) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      "Courier Man Has Not Verified Their Email Yet. Application Cannot Be Reviewed.",
-    );
-  }
+	if (!existingCourierMan.user.emailVerified) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Courier Man Has Not Verified Their Email Yet. Application Cannot Be Reviewed.",
+		);
+	}
 
-  if (existingCourierMan.verificationStatus !== CourierManVerificationStatus.PENDING) {
-    throw new AppError(
-      httpStatus.CONFLICT,
-      `Courier Man Application Has Already Been ${existingCourierMan.verificationStatus.toLowerCase()}`,
-    );
-  }
+	if (
+		existingCourierMan.verificationStatus !==
+		CourierManVerificationStatus.PENDING
+	) {
+		throw new AppError(
+			httpStatus.CONFLICT,
+			`Courier Man Application Has Already Been ${existingCourierMan.verificationStatus.toLowerCase()}`,
+		);
+	}
 
-  const isApproved = verificationStatus === CourierManVerificationStatus.APPROVED;
+	const isApproved =
+		verificationStatus === CourierManVerificationStatus.APPROVED;
 
- 
-  let randomPassword: string | null = null;
-  if (isApproved) {
-    randomPassword = generateSystemPassword();
-    const hashedPassword = await bcrypt.hash(randomPassword, Number(config.bcrypt_salt_rounds));
+	let randomPassword: string | null = null;
+	if (isApproved) {
+		randomPassword = generateSystemPassword();
+		const hashedPassword = await bcrypt.hash(
+			randomPassword,
+			Number(config.bcrypt_salt_rounds),
+		);
 
-    await prisma.user.update({
-      where: { id: existingCourierMan.userId },
-      data: { password: hashedPassword, needPasswordChange: true },
-    });
-  }
+		await prisma.user.update({
+			where: { id: existingCourierMan.userId },
+			data: { password: hashedPassword, needPasswordChange: true },
+		});
+	}
 
-  const updatedCourierMan = await prisma.courierMan.update({
-    where: { id: courierManId },
-    data: {
-      verificationStatus,
-      rejectionReason: isApproved ? null : rejectionReason,
-      reviewedBy: reviewer.userId,
-      reviewedAt: new Date(),
-    },
-    include: {
-      user: { omit: { password: true } },
-      currentHub: true,
-      zone: true,
-    },
-  });
+	const updatedCourierMan = await prisma.courierMan.update({
+		where: { id: courierManId },
+		data: {
+			verificationStatus,
+			rejectionReason: isApproved ? null : rejectionReason,
+			reviewedBy: reviewer.userId,
+			reviewedAt: new Date(),
+		},
+		include: {
+			user: { omit: { password: true } },
+			currentHub: true,
+			zone: true,
+		},
+	});
 
-  const templatePath = path.join(
-    process.cwd(),
-    `src/app/templates/${
-      isApproved ? "application-approved.ejs" : "application-rejected.ejs"
-    }`,
-  );
+	const templatePath = path.join(
+		process.cwd(),
+		`src/app/templates/${
+			isApproved ? "application-approved.ejs" : "application-rejected.ejs"
+		}`,
+	);
 
-  const html = await ejs.renderFile(templatePath, {
-    name: updatedCourierMan.user.name,
-    reason: updatedCourierMan.rejectionReason,
-    roleName: "Courier Man",
-    extraNote: isApproved ? "Once logged in, don't forget to mark yourself as available so you can start receiving deliveries." : undefined,
-  });
+	const html = await ejs.renderFile(templatePath, {
+		name: updatedCourierMan.user.name,
+		reason: updatedCourierMan.rejectionReason,
+		roleName: "Courier Man",
+		extraNote: isApproved
+			? "Once logged in, don't forget to mark yourself as available so you can start receiving deliveries."
+			: undefined,
+	});
 
-  await transporter.sendMail({
-    from: { name: "Courier & Logistics Management", address: config.email_sender },
-    to: updatedCourierMan.user.email,
-    subject: isApproved ? "Your Application Has Been Approved" : "Your Application Has Been Rejected",
-    html,
-  });
+	await transporter.sendMail({
+		from: {
+			name: "Courier & Logistics Management",
+			address: config.email_sender,
+		},
+		to: updatedCourierMan.user.email,
+		subject: isApproved
+			? "Your Application Has Been Approved"
+			: "Your Application Has Been Rejected",
+		html,
+	});
 
-  if (isApproved && randomPassword) {
-    const passwordTemplatePath = path.join(process.cwd(), "src/app/templates/generated-password.ejs");
-    const passwordHtml = await ejs.renderFile(passwordTemplatePath, {
-      name: updatedCourierMan.user.name,
-      password: randomPassword,
-    });
+	if (isApproved && randomPassword) {
+		const passwordTemplatePath = path.join(
+			process.cwd(),
+			"src/app/templates/generated-password.ejs",
+		);
+		const passwordHtml = await ejs.renderFile(passwordTemplatePath, {
+			name: updatedCourierMan.user.name,
+			password: randomPassword,
+		});
 
-    await transporter.sendMail({
-      from: { name: "Courier & Logistics Management", address: config.email_sender },
-      to: updatedCourierMan.user.email,
-      subject: "Your Password - Courier Man Application",
-      html: passwordHtml,
-    });
-  }
+		await transporter.sendMail({
+			from: {
+				name: "Courier & Logistics Management",
+				address: config.email_sender,
+			},
+			to: updatedCourierMan.user.email,
+			subject: "Your Password - Courier Man Application",
+			html: passwordHtml,
+		});
+	}
 
-  return updatedCourierMan;
+	return updatedCourierMan;
 };
-
 
 const getAllCourierMans = async (query: IQueryForCourier) => {
-  const limit = query.limit ? Number(query.limit) : 10;
-  const page = query.page ? Number(query.page) : 1;
-  const skip = (page - 1) * limit;
-  const sortBy = query.sortBy ? query.sortBy : "createdAt";
-  const sortOrder = query.sortOrder ? query.sortOrder : "desc";
+	const limit = query.limit ? Number(query.limit) : 10;
+	const page = query.page ? Number(query.page) : 1;
+	const skip = (page - 1) * limit;
+	const sortBy = query.sortBy ? query.sortBy : "createdAt";
+	const sortOrder = query.sortOrder ? query.sortOrder : "desc";
 
-  const andConditions: CourierManWhereInput[] = [];
+	const andConditions: CourierManWhereInput[] = [];
 
-  if (query.searchTerm) {
-    andConditions.push({
-      OR: [
-        { user: { name: { contains: query.searchTerm, mode: "insensitive" } } },
-        { user: { email: { contains: query.searchTerm, mode: "insensitive" } } },
-        { vehicleNumber: { contains: query.searchTerm, mode: "insensitive" } },
-        { licenseNumber: { contains: query.searchTerm, mode: "insensitive" } },
-      ],
-    });
-  }
+	if (query.searchTerm) {
+		andConditions.push({
+			OR: [
+				{ user: { name: { contains: query.searchTerm, mode: "insensitive" } } },
+				{
+					user: { email: { contains: query.searchTerm, mode: "insensitive" } },
+				},
+				{ vehicleNumber: { contains: query.searchTerm, mode: "insensitive" } },
+				{ licenseNumber: { contains: query.searchTerm, mode: "insensitive" } },
+			],
+		});
+	}
 
-  if (query.courierManAssignType) {
-    andConditions.push({ courierManAssignType: query.courierManAssignType as "HUB_TRANSFER" | "LAST_MILE" });
-  }
+	if (query.courierManAssignType) {
+		andConditions.push({
+			courierManAssignType: query.courierManAssignType as
+				| "HUB_TRANSFER"
+				| "LAST_MILE",
+		});
+	}
 
-  if (query.currentStatus) {
-    andConditions.push({ currentStatus: query.currentStatus as any });
-  }
+	if (query.currentStatus) {
+		andConditions.push({ currentStatus: query.currentStatus as any });
+	}
 
-  if (query.isAvailable !== undefined) {
-    andConditions.push({ isAvailable: query.isAvailable === "true" });
-  }
+	if (query.isAvailable !== undefined) {
+		andConditions.push({ isAvailable: query.isAvailable === "true" });
+	}
 
-  if (query.verificationStatus) {
-    andConditions.push({ verificationStatus: query.verificationStatus as CourierManVerificationStatus });
-  }
+	if (query.verificationStatus) {
+		andConditions.push({
+			verificationStatus:
+				query.verificationStatus as CourierManVerificationStatus,
+		});
+	}
 
-  if (query.hubCode) {
-    andConditions.push({ currentHub: { code: { equals: query.hubCode, mode: "insensitive" } } });
-  }
+	if (query.hubCode) {
+		andConditions.push({
+			currentHub: { code: { equals: query.hubCode, mode: "insensitive" } },
+		});
+	}
 
-  andConditions.push({ isDeleted: false });
+	andConditions.push({ isDeleted: false });
 
-  const allCourierMans = await prisma.courierMan.findMany({
-    where: { AND: andConditions },
-    take: limit,
-    skip,
-    orderBy: { [sortBy]: sortOrder },
-    include: {
-      user: { omit: { password: true } },
-      currentHub: true,
-      zone: true,
-    },
-  });
+	const allCourierMans = await prisma.courierMan.findMany({
+		where: { AND: andConditions },
+		take: limit,
+		skip,
+		orderBy: { [sortBy]: sortOrder },
+		include: {
+			user: { omit: { password: true } },
+			currentHub: true,
+			zone: true,
+		},
+	});
 
-  const totalCourierManCount = await prisma.courierMan.count({ where: { AND: andConditions } });
+	const totalCourierManCount = await prisma.courierMan.count({
+		where: { AND: andConditions },
+	});
 
-  return {
-    data: allCourierMans,
-    meta: {
-      page,
-      limit,
-      total: totalCourierManCount,
-      totalPages: Math.ceil(totalCourierManCount / limit),
-    },
-  };
+	return {
+		data: allCourierMans,
+		meta: {
+			page,
+			limit,
+			total: totalCourierManCount,
+			totalPages: Math.ceil(totalCourierManCount / limit),
+		},
+	};
 };
 
 const getSingleCourierManById = async (courierManId: string) => {
-  const courierMan = await prisma.courierMan.findUnique({
-    where: { id: courierManId },
-    include: {
-      user: { omit: { password: true } },
-      currentHub: true,
-      zone: true,
-    },
-  });
+	const courierMan = await prisma.courierMan.findUnique({
+		where: { id: courierManId },
+		include: {
+			user: { omit: { password: true } },
+			currentHub: true,
+			zone: true,
+		},
+	});
 
-  if (!courierMan) {
-    throw new AppError(httpStatus.NOT_FOUND, "Courier Man Not Found");
-  }
+	if (!courierMan) {
+		throw new AppError(httpStatus.NOT_FOUND, "Courier Man Not Found");
+	}
 
-  if (courierMan.isDeleted) {
-    throw new AppError(httpStatus.GONE, "Courier Man Has Been Deleted");
-  }
+	if (courierMan.isDeleted) {
+		throw new AppError(httpStatus.GONE, "Courier Man Has Been Deleted");
+	}
 
-  return courierMan;
+	return courierMan;
 };
-
 
 const updateCourierManProfile = async (
-  payload: IUpdateCourierManProfilePayload,
-  user: RequestUser,
+	payload: IUpdateCourierManProfilePayload,
+	user: RequestUser,
 ) => {
-  const existingCourierMan = await prisma.courierMan.findUnique({
-    where: { userId: user.userId },
-  });
+	const existingCourierMan = await prisma.courierMan.findUnique({
+		where: { userId: user.userId },
+	});
 
-  if (!existingCourierMan) {
-    throw new AppError(httpStatus.NOT_FOUND, "Courier Man Profile Not Found");
-  }
+	if (!existingCourierMan) {
+		throw new AppError(httpStatus.NOT_FOUND, "Courier Man Profile Not Found");
+	}
 
-  if (existingCourierMan.isDeleted) {
-    throw new AppError(httpStatus.GONE, "Courier Man Profile Has Been Deleted");
-  }
+	if (existingCourierMan.isDeleted) {
+		throw new AppError(httpStatus.GONE, "Courier Man Profile Has Been Deleted");
+	}
 
-  const result = await prisma.$transaction(async (tx) => {
-    let updatedUser = null;
-    let updatedCourierMan = null;
+	const result = await prisma.$transaction(async (tx) => {
+		let updatedUser = null;
+		let updatedCourierMan = null;
 
-    if (payload.user) {
-      const { name, phone, gender } = payload.user;
-      updatedUser = await tx.user.update({
-        where: { id: user.userId },
-        data: { name, phone, gender },
-        omit: { password: true },
-      });
-    }
+		if (payload.user) {
+			const { name, phone, gender } = payload.user;
+			updatedUser = await tx.user.update({
+				where: { id: user.userId },
+				data: { name, phone, gender },
+				omit: { password: true },
+			});
+		}
 
-    if (payload.courierMan) {
-      const { vehicleType, vehicleNumber, bio, qualifications, experienceYears } = payload.courierMan;
-      updatedCourierMan = await tx.courierMan.update({
-        where: { userId: user.userId },
-        data: { vehicleType, vehicleNumber, bio, qualifications, experienceYears },
-      });
-    }
+		if (payload.courierMan) {
+			const {
+				vehicleType,
+				vehicleNumber,
+				bio,
+				qualifications,
+				experienceYears,
+			} = payload.courierMan;
+			updatedCourierMan = await tx.courierMan.update({
+				where: { userId: user.userId },
+				data: {
+					vehicleType,
+					vehicleNumber,
+					bio,
+					qualifications,
+					experienceYears,
+				},
+			});
+		}
 
-    return { user: updatedUser, courierMan: updatedCourierMan };
-  });
+		return { user: updatedUser, courierMan: updatedCourierMan };
+	});
 
-  return result;
+	return result;
 };
 
+const toggleAvailability = async (
+	payload: IToggleAvailabilityPayload,
+	user: RequestUser,
+) => {
+	const existingCourierMan = await prisma.courierMan.findUnique({
+		where: { userId: user.userId },
+	});
 
-const toggleAvailability = async (payload: IToggleAvailabilityPayload, user: RequestUser) => {
-  const existingCourierMan = await prisma.courierMan.findUnique({
-    where: { userId: user.userId },
-  });
+	if (!existingCourierMan) {
+		throw new AppError(httpStatus.NOT_FOUND, "Courier Man Profile Not Found");
+	}
 
-  if (!existingCourierMan) {
-    throw new AppError(httpStatus.NOT_FOUND, "Courier Man Profile Not Found");
-  }
+	if (existingCourierMan.isDeleted) {
+		throw new AppError(httpStatus.GONE, "Courier Man Profile Has Been Deleted");
+	}
 
-  if (existingCourierMan.isDeleted) {
-    throw new AppError(httpStatus.GONE, "Courier Man Profile Has Been Deleted");
-  }
+	if (existingCourierMan.currentStatus !== "ACTIVE") {
+		throw new AppError(
+			httpStatus.FORBIDDEN,
+			`Cannot change availability while status is ${existingCourierMan.currentStatus}`,
+		);
+	}
 
-  if (existingCourierMan.currentStatus !== "ACTIVE") {
-    throw new AppError(
-      httpStatus.FORBIDDEN,
-      `Cannot change availability while status is ${existingCourierMan.currentStatus}`,
-    );
-  }
+	const updated = await prisma.courierMan.update({
+		where: { userId: user.userId },
+		data: { isAvailable: payload.isAvailable },
+	});
 
-  const updated = await prisma.courierMan.update({
-    where: { userId: user.userId },
-    data: { isAvailable: payload.isAvailable },
-  });
-
-  return updated;
+	return updated;
 };
 
+const updateLocation = async (
+	payload: IUpdateLocationPayload,
+	user: RequestUser,
+) => {
+	const existingCourierMan = await prisma.courierMan.findUnique({
+		where: { userId: user.userId },
+	});
 
-const updateLocation = async (payload: IUpdateLocationPayload, user: RequestUser) => {
-  const existingCourierMan = await prisma.courierMan.findUnique({
-    where: { userId: user.userId },
-  });
+	if (!existingCourierMan) {
+		throw new AppError(httpStatus.NOT_FOUND, "Courier Man Profile Not Found");
+	}
 
-  if (!existingCourierMan) {
-    throw new AppError(httpStatus.NOT_FOUND, "Courier Man Profile Not Found");
-  }
+	const updated = await prisma.courierMan.update({
+		where: { userId: user.userId },
+		data: {
+			currentLatitude: payload.currentLatitude,
+			currentLongitude: payload.currentLongitude,
+		},
+	});
 
-  const updated = await prisma.courierMan.update({
-    where: { userId: user.userId },
-    data: {
-      currentLatitude: payload.currentLatitude,
-      currentLongitude: payload.currentLongitude,
-    },
-  });
-
-  return updated;
+	return updated;
 };
-
 
 const adminUpdateCourierMan = async (
-  courierManId: string,
-  payload: IAdminUpdateCourierManPayload,
+	courierManId: string,
+	payload: IAdminUpdateCourierManPayload,
 ) => {
-  const existingCourierMan = await prisma.courierMan.findUnique({
-    where: { id: courierManId },
-  });
+	const existingCourierMan = await prisma.courierMan.findUnique({
+		where: { id: courierManId },
+	});
 
-  if (!existingCourierMan) {
-    throw new AppError(httpStatus.NOT_FOUND, "Courier Man Not Found");
-  }
+	if (!existingCourierMan) {
+		throw new AppError(httpStatus.NOT_FOUND, "Courier Man Not Found");
+	}
 
-  if (existingCourierMan.isDeleted) {
-    throw new AppError(httpStatus.GONE, "Courier Man Has Been Deleted");
-  }
+	if (existingCourierMan.isDeleted) {
+		throw new AppError(httpStatus.GONE, "Courier Man Has Been Deleted");
+	}
 
-  if (payload.currentHubId) {
-    const hub = await prisma.hub.findUnique({ where: { id: payload.currentHubId } });
-    if (!hub) throw new AppError(httpStatus.NOT_FOUND, "Hub Not Found");
-  }
+	if (payload.currentHubId) {
+		const hub = await prisma.hub.findUnique({
+			where: { id: payload.currentHubId },
+		});
+		if (!hub) throw new AppError(httpStatus.NOT_FOUND, "Hub Not Found");
+	}
 
-  if (payload.zoneId) {
-    const zone = await prisma.zone.findUnique({ where: { id: payload.zoneId } });
-    if (!zone) throw new AppError(httpStatus.NOT_FOUND, "Zone Not Found");
-  }
+	if (payload.zoneId) {
+		const zone = await prisma.zone.findUnique({
+			where: { id: payload.zoneId },
+		});
+		if (!zone) throw new AppError(httpStatus.NOT_FOUND, "Zone Not Found");
+	}
 
-  const updatedCourierMan = await prisma.courierMan.update({
-    where: { id: courierManId },
-    data: {
-      currentHubId: payload.currentHubId,
-      zoneId: payload.zoneId,
-      currentStatus: payload.currentStatus,
-    },
-    include: {
-      user: { omit: { password: true } },
-      currentHub: true,
-      zone: true,
-    },
-  });
+	const updatedCourierMan = await prisma.courierMan.update({
+		where: { id: courierManId },
+		data: {
+			currentHubId: payload.currentHubId,
+			zoneId: payload.zoneId,
+			currentStatus: payload.currentStatus,
+		},
+		include: {
+			user: { omit: { password: true } },
+			currentHub: true,
+			zone: true,
+		},
+	});
 
-  return updatedCourierMan;
+	return updatedCourierMan;
 };
 
-
 const adminDeleteCourierMan = async (courierManId: string) => {
-  const existingCourierMan = await prisma.courierMan.findUnique({
-    where: { id: courierManId },
-  });
+	const existingCourierMan = await prisma.courierMan.findUnique({
+		where: { id: courierManId },
+	});
 
-  if (!existingCourierMan) {
-    throw new AppError(httpStatus.NOT_FOUND, "Courier Man Not Found");
-  }
+	if (!existingCourierMan) {
+		throw new AppError(httpStatus.NOT_FOUND, "Courier Man Not Found");
+	}
 
-  if (existingCourierMan.isDeleted) {
-    throw new AppError(httpStatus.GONE, "Courier Man Already Deleted");
-  }
+	if (existingCourierMan.isDeleted) {
+		throw new AppError(httpStatus.GONE, "Courier Man Already Deleted");
+	}
 
-  const deletedCourierMan = await prisma.$transaction(async (tx) => {
-    const courierMan = await tx.courierMan.update({
-      where: { id: courierManId },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-      },
-      include: {
-        user: { omit: { password: true } },
-        currentHub: true,
-        zone: true,
-      },
-    });
+	const deletedCourierMan = await prisma.$transaction(async (tx) => {
+		const courierMan = await tx.courierMan.update({
+			where: { id: courierManId },
+			data: {
+				isDeleted: true,
+				deletedAt: new Date(),
+			},
+			include: {
+				user: { omit: { password: true } },
+				currentHub: true,
+				zone: true,
+			},
+		});
 
-    await tx.user.update({
-      where: { id: courierMan.userId },
-      data: {
-        status: UserStatus.DELETED,
-        isDeleted: true,
-        deletedAt: new Date(),
-      },
-    });
+		await tx.user.update({
+			where: { id: courierMan.userId },
+			data: {
+				status: UserStatus.DELETED,
+				isDeleted: true,
+				deletedAt: new Date(),
+			},
+		});
 
-    return courierMan;
-  });
+		return courierMan;
+	});
 
-  return null;
+	return null;
 };
 
 export const CourierManServices = {
-  applyAsCourierMan,
-  verifyCourierManEmail,
-  approveCourierMan,
-  getAllCourierMans,
-  getSingleCourierManById,
-  updateCourierManProfile,
-  toggleAvailability,
-  updateLocation,
-  adminUpdateCourierMan,
-  adminDeleteCourierMan,
+	applyAsCourierMan,
+	verifyCourierManEmail,
+	approveCourierMan,
+	getAllCourierMans,
+	getSingleCourierManById,
+	updateCourierManProfile,
+	toggleAvailability,
+	updateLocation,
+	adminUpdateCourierMan,
+	adminDeleteCourierMan,
 };

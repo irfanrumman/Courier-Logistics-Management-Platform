@@ -1,4 +1,4 @@
 export interface IVerifyCustomerEmailPayload {
-    email: string;
-    otp: string;
+	email: string;
+	otp: string;
 }

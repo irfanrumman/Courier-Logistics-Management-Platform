@@ -7,14 +7,11 @@ import { hubManagerValidation } from "./hubmanager.validation";
 import { HubManagerController } from "./hubmanager.controller";
 import { parseFormDataJson } from "../../middleware/parseFormDataJson";
 
-
 const router = Router();
-
-
 
 router.post(
 	"/apply-as-hub-manager",
-    upload.fields([
+	upload.fields([
 		{
 			name: "resume",
 			maxCount: 1,
@@ -25,15 +22,15 @@ router.post(
 			maxCount: 10,
 		},
 	]),
-    parseFormDataJson(),
+	parseFormDataJson(),
 	validateRequest(hubManagerValidation.applyAsHubManagerZodSchema),
-	
+
 	HubManagerController.applyAsHubManager,
 );
 
 router.post(
 	"/verify-email",
-    validateRequest(hubManagerValidation.hubManagerEmailVerifyZodSchema),
+	validateRequest(hubManagerValidation.hubManagerEmailVerifyZodSchema),
 	HubManagerController.verifyHubManagerEmail,
 );
 
@@ -52,10 +49,11 @@ router.get(
 router.patch(
 	"/update-my-profile",
 	auth(Role.HUB_MANAGER),
-	validateRequest(hubManagerValidation.UpdateHubManagerProfileValidationZodSchema),
+	validateRequest(
+		hubManagerValidation.UpdateHubManagerProfileValidationZodSchema,
+	),
 	HubManagerController.updateHubManagerProfile,
 );
-
 
 router.get(
 	"/single-hub-manager/:hubManagerId",
@@ -64,17 +62,16 @@ router.get(
 );
 
 router.patch(
-  "/update-hub-manager/:hubManagerId",
-  auth(Role.ADMIN, Role.SUPER_ADMIN),
-  validateRequest(hubManagerValidation.adminUpdateHubManagerZodSchema),
-  HubManagerController.adminUpdateHubManager,
+	"/update-hub-manager/:hubManagerId",
+	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	validateRequest(hubManagerValidation.adminUpdateHubManagerZodSchema),
+	HubManagerController.adminUpdateHubManager,
 );
 
 router.delete(
-  "/delete/:hubManagerId",
-  auth(Role.ADMIN, Role.SUPER_ADMIN),
-  HubManagerController.adminDeleteHubManager,
+	"/delete/:hubManagerId",
+	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	HubManagerController.adminDeleteHubManager,
 );
 
 export const HubManagerRoutes = router;
-

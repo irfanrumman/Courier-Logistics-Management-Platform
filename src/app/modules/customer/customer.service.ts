@@ -3,109 +3,116 @@ import httpStatus from "http-status";
 import crypto from "crypto";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
-import { IAdminUpdateCustomerPayload, IRegisterCustomerPayload, IUpdateCustomerProfilePayload } from "./customer.validation";
+import type {
+	IAdminUpdateCustomerPayload,
+	IRegisterCustomerPayload,
+	IUpdateCustomerProfilePayload,
+} from "./customer.validation";
 import config from "../../config";
 import { Role, UserStatus } from "../../../generated/prisma/enums";
 import { redisClient } from "../../lib/redis";
 import path from "path";
 import ejs from "ejs";
 import { transporter } from "../../lib/nodemailer";
-import { IVerifyCustomerEmailPayload } from "./customer.interface";
-import { RequestUser } from "../../middleware/checkAuth";
-import { IQuery } from "../../interfaces";
-import { CustomerWhereInput } from "../../../generated/prisma/models";
+import type { IVerifyCustomerEmailPayload } from "./customer.interface";
+import type { RequestUser } from "../../middleware/checkAuth";
+import type { IQuery } from "../../interfaces";
+import type { CustomerWhereInput } from "../../../generated/prisma/models";
 
+const registerCustomer = async (payload: IRegisterCustomerPayload) => {
+	const { name, email, password, phone, gender } = payload.user;
+	const {
+		defaultAddressLine,
+		defaultDistrict,
+		defaultThana,
+		defaultPostalCode,
+	} = payload.customer;
 
+	const existingUser = await prisma.user.findUnique({
+		where: {
+			email,
+		},
+	});
 
-const registerCustomer = async (payload: IRegisterCustomerPayload
-  ) => {
-  const { name, email, password, phone, gender } = payload.user;
-  const {defaultAddressLine, defaultDistrict, defaultThana, defaultPostalCode } = payload.customer;
+	if (existingUser) {
+		throw new AppError(
+			httpStatus.CONFLICT,
+			"User with this email already exists",
+		);
+	}
 
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      email,
-    },
-  });
+	const hashedPassword = await bcrypt.hash(
+		password,
+		Number(config.bcrypt_salt_rounds),
+	);
 
-  if (existingUser) {
-    throw new AppError(
-      httpStatus.CONFLICT,
-      "User with this email already exists",
-    );
-  }
+	// Create User + Customer
+	const result = await prisma.user.create({
+		data: {
+			name,
+			email,
+			password: hashedPassword,
+			phone,
+			gender,
+			role: Role.CUSTOMER,
 
-  const hashedPassword = await bcrypt.hash(password, Number(config.bcrypt_salt_rounds));
+			customer: {
+				create: {
+					defaultAddressLine,
+					defaultDistrict,
+					defaultThana,
+					defaultPostalCode,
+				},
+			},
+		},
+		omit: { password: true },
 
-   // Create User + Customer
-  const result = await prisma.user.create({
-    data: {
-      name,
-      email,
-      password: hashedPassword,
-      phone,
-      gender,
-      role: Role.CUSTOMER,
+		include: {
+			customer: true,
+		},
+	});
 
-      customer: {
-        create: {
-          defaultAddressLine,
-          defaultDistrict,
-          defaultThana,
-          defaultPostalCode,
-        },
-      },
-    },
-    omit: {password: true},
+	const expirationSeconds = 60 * 60;
 
-    include: {
-      customer: true,
-    },
-  });
+	const otpKey = `customer-application-otp:${payload.user.email}`;
+	const otpValue = crypto.randomInt(100000, 1000000).toString();
 
-  const expirationSeconds = 60 * 60;
-  
-    const otpKey = `customer-application-otp:${payload.user.email}`;
-    const otpValue = crypto.randomInt(100000, 1000000).toString();
-  
-    await redisClient.set(otpKey, otpValue, {
-      expiration: {
-        type: "EX",
-        value: expirationSeconds,
-      },
-    });
-  
-    const tempatePath = path.join(
-      process.cwd(),
-      "src/app/templates/otp-for-one-hour.ejs",
-    );
-  
-    const templateData = {
-      name: name,
-      email: email,
-      otp: otpValue,
-      expirationMinutes: expirationSeconds / 60,
-    };
-  
-    const html = await ejs.renderFile(tempatePath, templateData);
-  
-    await transporter.sendMail({
-      from: {
-          name: "Courier & Logistics Management",
-          address: config.email_sender,
-        },
-      to: payload.user.email,
-      subject: "Customer Application - Email Verification",
-      html,
-    });
-  
-  return result;
+	await redisClient.set(otpKey, otpValue, {
+		expiration: {
+			type: "EX",
+			value: expirationSeconds,
+		},
+	});
+
+	const tempatePath = path.join(
+		process.cwd(),
+		"src/app/templates/otp-for-one-hour.ejs",
+	);
+
+	const templateData = {
+		name: name,
+		email: email,
+		otp: otpValue,
+		expirationMinutes: expirationSeconds / 60,
+	};
+
+	const html = await ejs.renderFile(tempatePath, templateData);
+
+	await transporter.sendMail({
+		from: {
+			name: "Courier & Logistics Management",
+			address: config.email_sender,
+		},
+		to: payload.user.email,
+		subject: "Customer Application - Email Verification",
+		html,
+	});
+
+	return result;
 };
 
-const verifyCustomerEmail = async (payload: IVerifyCustomerEmailPayload
-) => {
-
-    const otp = payload.otp;
+const verifyCustomerEmail = async (payload: IVerifyCustomerEmailPayload) => {
+	const otp = payload.otp;
 	const email = payload.email.trim().toLowerCase();
 
 	const existingUser = await prisma.user.findUnique({
@@ -147,8 +154,7 @@ const verifyCustomerEmail = async (payload: IVerifyCustomerEmailPayload
 		include: { customer: true },
 	});
 
-	return verifiedUser
-
+	return verifiedUser;
 };
 
 // const getMyCustomerProfile = async (user: RequestUser) => {
@@ -158,12 +164,12 @@ const verifyCustomerEmail = async (payload: IVerifyCustomerEmailPayload
 //       userId: user.userId,
 //       isDeleted: false,
 //     },
-//     include: { 
+//     include: {
 //         user: {
-//              omit: { 
-//                 password: true 
-//             } 
-//         } 
+//              omit: {
+//                 password: true
+//             }
+//         }
 //     },
 //   });
 
@@ -178,296 +184,267 @@ const verifyCustomerEmail = async (payload: IVerifyCustomerEmailPayload
 // };
 
 const updateMyCustomerProfile = async (
-  user: RequestUser,
-  payload: IUpdateCustomerProfilePayload,
+	user: RequestUser,
+	payload: IUpdateCustomerProfilePayload,
 ) => {
+	const existingCustomer = await prisma.customer.findUnique({
+		where: {
+			userId: user.userId,
+			isDeleted: false,
+		},
+	});
 
-  const existingCustomer = await prisma.customer.findUnique({
-    where: {
-      userId: user.userId,
-      isDeleted: false,
-    },
-  });
+	if (!existingCustomer) {
+		throw new AppError(httpStatus.NOT_FOUND, "Customer Profile not found");
+	}
 
-  if (!existingCustomer) {
-    throw new AppError(
-      httpStatus.NOT_FOUND,
-      "Customer Profile not found",
-    );
-  }
+	if (existingCustomer.isDeleted) {
+		throw new AppError(httpStatus.GONE, "Customer Profile Has Been Deleted");
+	}
 
-   if (existingCustomer.isDeleted) {
-    throw new AppError(httpStatus.GONE, "Customer Profile Has Been Deleted");
-  }
+	const result = await prisma.$transaction(async (tx) => {
+		let updatedUser = null;
+		let updatedCustomerProfile = null;
 
+		if (payload.user) {
+			const { name, phone, gender } = payload.user;
+			updatedUser = await tx.user.update({
+				where: { id: user.userId },
+				data: { name, phone, gender },
+				omit: { password: true },
+			});
+		}
 
- const result = await prisma.$transaction(async (tx) => {
-    let updatedUser = null;
-    let updatedCustomerProfile = null;
+		if (payload.customer) {
+			const {
+				defaultAddressLine,
+				defaultDistrict,
+				defaultThana,
+				defaultPostalCode,
+			} = payload.customer;
 
-    if (payload.user) {
-      const { name, phone, gender } = payload.user;
-      updatedUser = await tx.user.update({
-        where: { id: user.userId },
-        data: { name, phone, gender },
-        omit: { password: true },
-      });
-    }
+			updatedCustomerProfile = await tx.customer.update({
+				where: { userId: user.userId },
+				data: {
+					defaultAddressLine,
+					defaultDistrict,
+					defaultThana,
+					defaultPostalCode,
+				},
+			});
+		}
 
-    if (payload.customer) {
-      const { defaultAddressLine,
-    defaultDistrict,
-    defaultThana,
-    defaultPostalCode } =
-        payload.customer;
+		return { user: updatedUser, customerProfile: updatedCustomerProfile };
+	});
 
-      updatedCustomerProfile = await tx.customer.update({
-        where: { userId: user.userId },
-        data: { defaultAddressLine,
-    defaultDistrict,
-    defaultThana,
-    defaultPostalCode },
-      });
-    }
-
-    return { user: updatedUser, customerProfile: updatedCustomerProfile };
-  });
-
-  return result;
+	return result;
 };
 
 const getAllCustomers = async (query: IQuery) => {
+	const limit = query.limit ? Number(query.limit) : 10;
+	const page = query.page ? Number(query.page) : 1;
+	const skip = (page - 1) * limit;
+	const sortBy = query.sortBy ? query.sortBy : "createdAt";
+	const sortOrder = query.sortOrder ? query.sortOrder : "desc";
 
-   const limit = query.limit ? Number(query.limit) : 10;
-    const page = query.page ? Number(query.page) : 1;
-    const skip = (page - 1) * limit;
-    const sortBy = query.sortBy ? query.sortBy : "createdAt";
-    const sortOrder = query.sortOrder ? query.sortOrder : "desc"
-  
-   
-    const andConditions: CustomerWhereInput[] = []
+	const andConditions: CustomerWhereInput[] = [];
 
+	//Searching
+	if (query.searchTerm) {
+		andConditions.push({
+			OR: [
+				{
+					user: {
+						name: {
+							contains: query.searchTerm,
+							mode: "insensitive",
+						},
+					},
+				},
+				{
+					user: {
+						email: {
+							contains: query.searchTerm,
+							mode: "insensitive",
+						},
+					},
+				},
+			],
+		});
+	}
 
-    //Searching
-    if (query.searchTerm) {
-        andConditions.push({
-            OR: [
-             { 
-        user:{ 
-          name: { 
-            contains: query.searchTerm, 
-             mode: "insensitive" 
-            }
-           } 
-          },
-        {
-           user: { 
-            email: { 
-              contains: query.searchTerm, 
-              mode: "insensitive" 
-            } 
-          } 
-        },
-            ],
-        });
-    }
+	//filtering
 
-    //filtering
+	if (query.email) {
+		andConditions.push({
+			user: {
+				email: {
+					contains: query.email,
+					mode: "insensitive",
+				},
+			},
+		});
+	}
 
-    if (query.email) {
-        andConditions.push({
-      user: { 
-        email: { 
-          contains: query.email, 
-          mode: "insensitive" 
-        } 
-      },
-    });
-    }
+	if (query.name) {
+		andConditions.push({
+			user: {
+				name: { equals: query.name, mode: "insensitive" },
+			},
+		});
+	}
 
-    
-    if (query.name) {
-    andConditions.push({
-      user: {
-        name: { equals: query.name, mode: "insensitive" }
-      }
-    });
-  }
+	andConditions.push({ isDeleted: false });
 
-    andConditions.push({ isDeleted: false });
+	const allCustomers = await prisma.customer.findMany({
+		where: {
+			AND: andConditions.length > 0 ? andConditions : undefined,
+		},
 
+		take: limit,
+		skip: skip,
 
-    const allCustomers = await prisma.customer.findMany({
-        where : {
-            AND : andConditions.length > 0 ? andConditions : undefined
-        },
+		orderBy: {
+			[sortBy]: sortOrder,
+		},
 
-        take: limit,
-        skip: skip,
+		include: {
+			user: {
+				omit: {
+					password: true,
+				},
+			},
+		},
+	});
 
+	const totalCustomerCount = await prisma.customer.count({
+		where: {
+			AND: andConditions,
+		},
+	});
 
-        orderBy: {
-            [sortBy]: sortOrder
-        },
-
-        include:{
-            user: {
-                omit:{
-                    password: true
-                }
-            },
-        }
-
-    });
-
-    const totalCustomerCount = await prisma.customer.count({
-        where: {
-            AND: andConditions
-        }
-    })
-
-    return {
-        data: allCustomers,
-        meta: {
-            page: page,
-            limit: limit,
-            total: totalCustomerCount,
-            totalPages: Math.ceil(totalCustomerCount / limit)
-        }
-    }
+	return {
+		data: allCustomers,
+		meta: {
+			page: page,
+			limit: limit,
+			total: totalCustomerCount,
+			totalPages: Math.ceil(totalCustomerCount / limit),
+		},
+	};
 };
 
 const getSingleCustomerById = async (customerId: string) => {
+	const customer = await prisma.customer.findUnique({
+		where: {
+			id: customerId,
+			isDeleted: false,
+		},
+		include: {
+			user: { omit: { password: true } },
+		},
+	});
 
-  const customer = await prisma.customer.findUnique({
-    where: {
-      id: customerId,
-      isDeleted: false,
-    },
-    include: {
-      user: { omit: { password: true } },
-    },
-  });
+	if (!customer) {
+		throw new AppError(httpStatus.NOT_FOUND, "Customer Profile not found");
+	}
 
-  if (!customer) {
-    throw new AppError(
-      httpStatus.NOT_FOUND,
-      "Customer Profile not found",
-    );
-  }
-  
-
-   if (customer.isDeleted) {                       
-    throw new AppError(httpStatus.GONE, "Customer Has Been Deleted");
-  }
-  return customer;
+	if (customer.isDeleted) {
+		throw new AppError(httpStatus.GONE, "Customer Has Been Deleted");
+	}
+	return customer;
 };
 
-
 const adminUpdateCustomerStatus = async (
-  customerId: string,
-  payload: IAdminUpdateCustomerPayload,
+	customerId: string,
+	payload: IAdminUpdateCustomerPayload,
 ) => {
+	const { status } = payload;
 
-    const { status } = payload;
+	const existingCustomer = await prisma.customer.findUnique({
+		where: {
+			id: customerId,
+			isDeleted: false,
+		},
+	});
 
-  const existingCustomer = await prisma.customer.findUnique({
-    where: {
-      id: customerId,
-      isDeleted: false,
-    },
-  });
+	if (!existingCustomer) {
+		throw new AppError(httpStatus.NOT_FOUND, "Customer not found");
+	}
 
-  if (!existingCustomer) {
-    throw new AppError(
-      httpStatus.NOT_FOUND,
-      "Customer not found",
-    );
-  }
+	if (existingCustomer.isDeleted) {
+		throw new AppError(httpStatus.GONE, "Customer Has Been Deleted");
+	}
 
-  if (existingCustomer.isDeleted) {
-    throw new AppError(httpStatus.GONE, "Customer Has Been Deleted");
-  }
+	const result = await prisma.customer.update({
+		where: {
+			id: customerId,
+		},
+		data: {
+			user: {
+				update: {
+					status,
+				},
+			},
+		},
+		include: {
+			user: { omit: { password: true } },
+		},
+	});
 
-
-  const result = await prisma.customer.update({
-    where: {
-      id: customerId,
-    },
-    data: {
-      user:{
-      update:{
-        
-        status,
-     
-      }
-      }
-    },
-    include: {
-      user: { omit: { password: true } },
-  
-  }
-  });
-
-  return result;
+	return result;
 };
 
 const adminDeleteCustomer = async (customerId: string) => {
+	const existingCustomer = await prisma.customer.findUnique({
+		where: {
+			id: customerId,
+			isDeleted: false,
+		},
+	});
 
-  const existingCustomer = await prisma.customer.findUnique({
-    where: {
-      id: customerId,
-      isDeleted: false,
-    },
-  });
+	if (!existingCustomer) {
+		throw new AppError(httpStatus.NOT_FOUND, "Customer not found");
+	}
 
-  if (!existingCustomer) {
-    throw new AppError(
-      httpStatus.NOT_FOUND,
-      "Customer not found",
-    );
-  }
+	if (existingCustomer.isDeleted) {
+		throw new AppError(httpStatus.GONE, "Customer Already Deleted");
+	}
 
-    if (existingCustomer.isDeleted) {
-    throw new AppError(httpStatus.GONE, "Customer Already Deleted");
-  }
-  
-    const deleteCustomer = await prisma.$transaction(async (tx) => {
-    const customer = await prisma.customer.update({
-    where: { id: customerId },
-    data: {
-      isDeleted: true,
-      deletedAt: new Date(),
-    },
-    include: {
-      user: { omit: { password: true } },
-      
-    },
-  });
+	const deleteCustomer = await prisma.$transaction(async (tx) => {
+		const customer = await prisma.customer.update({
+			where: { id: customerId },
+			data: {
+				isDeleted: true,
+				deletedAt: new Date(),
+			},
+			include: {
+				user: { omit: { password: true } },
+			},
+		});
 
+		await tx.user.update({
+			where: { id: customer.userId },
+			data: {
+				status: UserStatus.DELETED,
+				isDeleted: true,
+				deletedAt: new Date(),
+			},
+		});
 
-    await tx.user.update({
-      where: { id: customer.userId },
-      data: {
-        status: UserStatus.DELETED,
-        isDeleted: true,
-        deletedAt: new Date(),
-      },
-    });
+		return customer;
+	});
 
-    return customer;
-  });
-   
-  return null;
+	return null;
 };
 
 export const CustomerService = {
-  registerCustomer,
-  verifyCustomerEmail,
-  // getMyCustomerProfile,
-  updateMyCustomerProfile,
-  getAllCustomers,
-  getSingleCustomerById,
-  adminUpdateCustomerStatus,
-  adminDeleteCustomer,
+	registerCustomer,
+	verifyCustomerEmail,
+	// getMyCustomerProfile,
+	updateMyCustomerProfile,
+	getAllCustomers,
+	getSingleCustomerById,
+	adminUpdateCustomerStatus,
+	adminDeleteCustomer,
 };

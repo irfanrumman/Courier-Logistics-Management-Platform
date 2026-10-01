@@ -7,54 +7,50 @@ import { CodCollectionController } from "./codcollection.controller";
 
 const router = Router();
 
-
-
 router.post(
-  "/record",
-  auth(Role.COURIER_MAN),
-  validateRequest(codCollectionValidation.recordCollectionZodSchema),
-  CodCollectionController.recordCollection,
+	"/record",
+	auth(Role.COURIER_MAN),
+	validateRequest(codCollectionValidation.recordCollectionZodSchema),
+	CodCollectionController.recordCollection,
 );
 
 router.patch(
-  "/confirm-hub-receipt",
-  auth(Role.HUB_MANAGER),
-  validateRequest(codCollectionValidation.confirmHubReceiptZodSchema),
-  CodCollectionController.confirmHubReceipt,
+	"/confirm-hub-receipt",
+	auth(Role.HUB_MANAGER),
+	validateRequest(codCollectionValidation.confirmHubReceiptZodSchema),
+	CodCollectionController.confirmHubReceipt,
 );
 
 router.get(
-  "/my-collections",
-  auth(Role.COURIER_MAN),
-  CodCollectionController.getMyCollections,
+	"/my-collections",
+	auth(Role.COURIER_MAN),
+	CodCollectionController.getMyCollections,
 );
 
 // Admin/Hub Manager — remittance tracking
 router.patch(
-  "/mark-remitted/:codCollectionId",
-  auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
-  validateRequest(codCollectionValidation.markRemittedZodSchema),
-  CodCollectionController.markRemitted,
+	"/mark-remitted/:codCollectionId",
+	auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
+	validateRequest(codCollectionValidation.markRemittedZodSchema),
+	CodCollectionController.markRemitted,
 );
 
 router.get(
-  "/all-collections",
-  auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
-  CodCollectionController.getAllCollections,
+	"/all-collections",
+	auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
+	CodCollectionController.getAllCollections,
 );
 
 router.get(
-  "/single-collection/:codCollectionId",
-  auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
-  CodCollectionController.getSingleCollection,
+	"/single-collection/:codCollectionId",
+	auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
+	CodCollectionController.getSingleCollection,
 );
 
-
 router.get(
-  "/my-sender-collections",
-  auth(Role.MERCHANT),
-  CodCollectionController.getMySenderCODCollections,  
+	"/my-sender-collections",
+	auth(Role.MERCHANT),
+	CodCollectionController.getMySenderCODCollections,
 );
 
 export const CodCollectionRoutes = router;
-

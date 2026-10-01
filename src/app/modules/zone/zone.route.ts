@@ -8,36 +8,35 @@ import { ZoneController } from "./zone.controller";
 const router = Router();
 
 router.post(
-  "/create-zone",
-  auth(Role.ADMIN, Role.SUPER_ADMIN),
-  validateRequest(zoneValidation.createZoneZodSchema),
-  ZoneController.createZone,
+	"/create-zone",
+	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	validateRequest(zoneValidation.createZoneZodSchema),
+	ZoneController.createZone,
 );
 
 router.get(
-  "/all-zones",
-  auth(Role.ADMIN, Role.SUPER_ADMIN),
-  ZoneController.getAllZones,
+	"/all-zones",
+	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	ZoneController.getAllZones,
 );
 
 router.get(
-  "/single-zone/:zoneId",
-  auth(Role.ADMIN, Role.SUPER_ADMIN),
-  ZoneController.getSingleZoneById,
+	"/single-zone/:zoneId",
+	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	ZoneController.getSingleZoneById,
 );
 
 router.patch(
-  "/update-zone/:zoneId",
-  auth(Role.ADMIN, Role.SUPER_ADMIN),
-  validateRequest(zoneValidation.updateZoneZodSchema),
-  ZoneController.updateZone,
+	"/update-zone/:zoneId",
+	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	validateRequest(zoneValidation.updateZoneZodSchema),
+	ZoneController.updateZone,
 );
 
 router.delete(
-  "/delete-zone/:zoneId",
-  auth(Role.ADMIN, Role.SUPER_ADMIN),
-  ZoneController.deleteZone,
+	"/delete-zone/:zoneId",
+	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	ZoneController.deleteZone,
 );
 
 export const ZoneRoutes = router;
-

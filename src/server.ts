@@ -3,12 +3,14 @@ import config from "./app/config";
 import { deleteUnverifiedHubManagers } from "./app/lib/cron";
 import { transporter } from "./app/lib/nodemailer";
 import { prisma } from "./app/lib/prisma";
-// import { deleteUnverifiedDoctors } from "./app/lib/cron";
 import { redisClient } from "./app/lib/redis";
 // import {
 // 	seedSuperAdmin,
 // 	seedTesterAdmin,
-// 	seedTesterDoctor,
+// 	seedTesterCustomer,
+// 	seedTesterMerchant,
+// 	seedTesterCourierMan,
+// 	seedTesterHubManager,
 // } from "./app/utils/seed";
 
 const PORT = config.port;
@@ -26,7 +28,10 @@ const main = async () => {
 
 		// await seedSuperAdmin();
 		// await seedTesterAdmin();
-		// await seedTesterDoctor();
+		// await seedTesterCustomer();
+		// await seedTesterMerchant();
+		// await seedTesterCourierMan();
+		// await seedTesterHubManager();
 
 		await deleteUnverifiedHubManagers();
 
