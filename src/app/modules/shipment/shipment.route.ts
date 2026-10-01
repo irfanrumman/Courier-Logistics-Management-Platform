@@ -99,5 +99,3 @@ router.delete(
 );
 
 export const ShipmentRoutes = router;
-
-// shipment/        → shipment create/track/status-update, parcel add (core module, nested parcel routes)

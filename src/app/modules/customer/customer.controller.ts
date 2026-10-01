@@ -32,20 +32,20 @@ const verifyCustomerEmail = catchAsync(
   },
 );
 
-const getMyCustomerProfile = catchAsync(
-  async (req: Request, res: Response) => {
+// const getMyCustomerProfile = catchAsync(
+//   async (req: Request, res: Response) => {
 
-    const user = req.user!
-    const result = await CustomerService.getMyCustomerProfile(user);
+//     const user = req.user!
+//     const result = await CustomerService.getMyCustomerProfile(user);
 
-    sendResponse(res, {
-      statusCode: httpStatus.OK,
-      success: true,
-      message: "Customer profile retrieved successfully",
-      data: result,
-    });
-  },
-);
+//     sendResponse(res, {
+//       statusCode: httpStatus.OK,
+//       success: true,
+//       message: "Customer profile retrieved successfully",
+//       data: result,
+//     });
+//   },
+// );
 
 const updateMyCustomerProfile = catchAsync(
   async (req: Request, res: Response) => {
@@ -134,7 +134,7 @@ const adminDeleteCustomer = catchAsync(
 export const CustomerController = {
   registerCustomer,
   verifyCustomerEmail,
-  getMyCustomerProfile,
+  // getMyCustomerProfile,
   updateMyCustomerProfile,
   getAllCustomers,
   getSingleCustomerById,

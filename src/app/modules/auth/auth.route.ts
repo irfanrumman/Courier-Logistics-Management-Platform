@@ -47,12 +47,13 @@ router.post(
 	AuthController.resetPassword,
 );
 
-// router.post(
-// 	"/logout",
-// 	auth(Role.ADMIN, Role.CUSTOMER, Role.COURIER_MAN, Role.HUB_MANAGER, Role.SUPER_ADMIN),
-// 	AuthController.logoutUser,
-// );
+router.post(
+	"/logout",
+	auth(Role.ADMIN, Role.CUSTOMER, Role.MERCHANT, Role.COURIER_MAN, Role.HUB_MANAGER, Role.SUPER_ADMIN),
+	AuthController.logoutUser,
+);
+
+
 export const AuthRoutes = router;
 
 
-//  auth/            → register (customer), login, refresh-token, OTP verify, logout, changePassword, 

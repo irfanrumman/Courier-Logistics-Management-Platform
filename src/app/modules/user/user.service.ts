@@ -9,6 +9,7 @@ import { UserWhereInput } from "../../../generated/prisma/models";
 import { IUpdateUserStatusPayload } from "./user.validation";
 import { IQueryForUser } from "./user.interface";
 
+
 const uploadProfileImage = async (buffer: Buffer, userId: string) => {
 
 	const currentUser = await prisma.user.findUnique({
@@ -67,10 +68,7 @@ const uploadProfileImage = async (buffer: Buffer, userId: string) => {
 	return updatedUser;
 };
 
-// ==========================================================
-// ১. Admin এর জন্য সব user এর তালিকা — role/status/searchTerm দিয়ে filter করা যাবে,
-// এখানে role-agnostic ভাবে সব role এর user (customer, merchant, courier, hub manager, admin) দেখা যাবে
-// ==========================================================
+
 const getAllUsers = async (query: IQueryForUser) => {
   const limit = query.limit ? Number(query.limit) : 10;
   const page = query.page ? Number(query.page) : 1;
@@ -115,10 +113,7 @@ const getAllUsers = async (query: IQueryForUser) => {
   };
 };
 
-// ==========================================================
-// ২. Admin এর জন্য single user — তার role অনুযায়ী যে profile থাকে (customer/merchant/
-// courierMan/hubManager) সবগুলোই include করছি, যেটা exist করে সেটাই non-null আসবে
-// ==========================================================
+
 const getSingleUserById = async (userId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -138,11 +133,7 @@ const getSingleUserById = async (userId: string) => {
   return user;
 };
 
-// ==========================================================
-// ৩. Ban/Unban — শুধু ACTIVE <-> SUSPENDED এর মধ্যে টগল।
-// দুইটা সুরক্ষা: (ক) কেউ নিজেকে ব্যান করতে পারবে না,
-// (খ) সাধারণ ADMIN অন্য ADMIN/SUPER_ADMIN কে ব্যান করতে পারবে না — শুধু SUPER_ADMIN পারবে
-// ==========================================================
+
 const updateUserStatus = async (
   userId: string,
   payload: IUpdateUserStatusPayload,

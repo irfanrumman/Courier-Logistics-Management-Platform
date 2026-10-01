@@ -3,6 +3,6 @@ export interface IQueryForCodCollection {
   page?: string;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
-  isRemittedToSender?: string; // "true"/"false" — কোনগুলো এখনো merchant কে পাঠানো হয়নি সেটা filter করতে
+  isRemittedToSender?: string; 
   courierManId?: string;
 }

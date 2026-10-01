@@ -343,6 +343,7 @@ const getMe = async (user: IRequestUser) => {
     });
 
     if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
+
     return result;
   }
 
@@ -354,6 +355,7 @@ const getMe = async (user: IRequestUser) => {
       omit: { password: true },
     });
     if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
+
     return result;
   }
 
@@ -364,6 +366,7 @@ const getMe = async (user: IRequestUser) => {
       omit: { password: true },
     });
     if (!result) throw new AppError(httpStatus.NOT_FOUND, "User not found");
+
     return result;
   }
 
@@ -708,6 +711,12 @@ const resetPassword = async (payload: IResetPasswordPayload) => {
 	});
 };
 
+const logoutUser = async () => {
+  return {
+    message: "Logged out successfully",
+  };
+};
+
 export const AuthService = {
 	registerCustomer,
 	verifyCustomerEmail,
@@ -717,4 +726,5 @@ export const AuthService = {
 	googleLogin,
 	forgotPassword,
 	resetPassword,
+	logoutUser
 };

@@ -3,10 +3,6 @@ import { Role } from "../../../generated/prisma/enums";
 import { upload } from "../../lib/multer";
 import { auth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
-// import { validateRequest } from "../../middleware/valideRequest";
-
-// import { UpdateDoctorProfileValidationZodSchema } from "./doctor.validation";
-
 import { hubManagerValidation } from "./hubmanager.validation";
 import { HubManagerController } from "./hubmanager.controller";
 import { parseFormDataJson } from "../../middleware/parseFormDataJson";
@@ -47,13 +43,6 @@ router.post(
 	HubManagerController.approveHubManager,
 );
 
-
-router.get(
-  "/my-profile",
-  auth(Role.HUB_MANAGER),
-  HubManagerController.getMyProfile,
-);
-
 router.get(
 	"/all-hub-managers",
 	auth(Role.ADMIN, Role.SUPER_ADMIN),
@@ -89,4 +78,3 @@ router.delete(
 
 export const HubManagerRoutes = router;
 
-// hubManager/      → hub manager registration, profile, admin: verify/assign

@@ -40,5 +40,3 @@ router.delete(
 );
 
 export const PricingRuleRoutes = router;
-
-// pricingRule/     → pricing rule CRUD + price calculation logic

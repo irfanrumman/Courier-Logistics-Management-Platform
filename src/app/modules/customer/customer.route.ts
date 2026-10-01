@@ -7,7 +7,6 @@ import { validateRequest } from "../../middleware/validateRequest";
 
 const router = Router();
 
-// ==================== Customer Registration ====================
 
 router.post(
   "/register",
@@ -21,13 +20,12 @@ router.post(
   CustomerController.verifyCustomerEmail,
 );
 
-// ==================== Customer Profile ====================
 
-router.get(
-  "/my-profile",
-  auth(Role.CUSTOMER),
-  CustomerController.getMyCustomerProfile,
-);
+// router.get(
+//   "/my-profile",
+//   auth(Role.CUSTOMER),
+//   CustomerController.getMyCustomerProfile,
+// );
 
 router.patch(
   "/update-my-profile",
@@ -35,8 +33,6 @@ router.patch(
   validateRequest(customerValidation.updateCustomerProfileZodSchema),
   CustomerController.updateMyCustomerProfile,
 );
-
-// ==================== Admin Customer Management ====================
 
 router.get(
   "/all-customers",
@@ -65,4 +61,3 @@ router.delete(
 
 export const CustomerRoutes = router;
 
-//customer/        → profile (default address) update, shipment history, 

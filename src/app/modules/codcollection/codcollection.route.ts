@@ -58,4 +58,3 @@ router.get(
 
 export const CodCollectionRoutes = router;
 
-// codCollection/   → COD cash collection + remittance tracking

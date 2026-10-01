@@ -7,7 +7,7 @@ import { CourierManController } from "./courierman.controller";
 
 const router = Router();
 
-// Public — কেউ registration করতে পারবে, resume/file upload নেই তাই parseFormDataJson/upload.fields লাগছে না
+
 router.post(
   "/apply-as-courier-man",
   validateRequest(courierManValidation.applyAsCourierManZodSchema),
@@ -18,12 +18,6 @@ router.post(
   "/verify-email",
   validateRequest(courierManValidation.courierManEmailVerifyZodSchema),
   CourierManController.verifyCourierManEmail,
-);
-
-router.get(
-  "/my-profile",
-  auth(Role.COURIER_MAN),
-  CourierManController.getMyProfile,
 );
 
 
@@ -60,7 +54,7 @@ router.delete(
   CourierManController.adminDeleteCourierMan,
 );
 
-// Courier man নিজের জন্য (self-service)
+// Courier man self-service
 router.patch(
   "/update-my-profile",
   auth(Role.COURIER_MAN),
@@ -84,4 +78,3 @@ router.patch(
 
 export const CourierManRoutes = router;
 
-// courierMan/      → courier registration, profile, availability toggle, admin: verify/assign

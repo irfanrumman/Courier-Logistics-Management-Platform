@@ -38,17 +38,17 @@ const verifyMerchantEmail = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getMyMerchantProfile = catchAsync(async (req: Request, res: Response) => {
-  const user = req.user!;
-  const result = await MerchantServices.getMyMerchantProfile(user);
+// const getMyMerchantProfile = catchAsync(async (req: Request, res: Response) => {
+//   const user = req.user!;
+//   const result = await MerchantServices.getMyMerchantProfile(user);
 
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "Merchant Profile Retrieved Successfully",
-    data: result,
-  });
-});
+//   sendResponse(res, {
+//     statusCode: httpStatus.OK,
+//     success: true,
+//     message: "Merchant Profile Retrieved Successfully",
+//     data: result,
+//   });
+// });
 
 const updateMerchantProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user!;
@@ -127,7 +127,7 @@ const adminDeleteMerchant = catchAsync(async (req: Request, res: Response) => {
 export const MerchantController = {
   registerMerchant,
   verifyMerchantEmail,
-  getMyMerchantProfile,
+  // getMyMerchantProfile,
   updateMerchantProfile,
   verifyMerchant,
   getAllMerchants,

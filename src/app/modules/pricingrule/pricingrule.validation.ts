@@ -9,7 +9,6 @@ export const createPricingRuleZodSchema = z
     basePrice: z.number().nonnegative("Base price cannot be negative"),
     perKgRate: z.number().nonnegative("Per-kg rate cannot be negative"),
   })
-  // weightMax অবশ্যই weightMin এর চেয়ে বড় হতে হবে, নাহলে bracket-টাই অর্থহীন
   .refine((data) => data.weightMax > data.weightMin, {
     message: "weightMax must be greater than weightMin",
     path: ["weightMax"],
@@ -21,8 +20,6 @@ export const updatePricingRuleZodSchema = z
     weightMax: z.number().positive().optional(),
     basePrice: z.number().nonnegative().optional(),
     perKgRate: z.number().nonnegative().optional(),
-    // fromZoneId/toZoneId ইচ্ছাকৃতভাবে বাদ — zone বদলাতে চাইলে rule delete করে নতুন বানানোই safer,
-    // কারণ zone বদলালে duplicate/overlap detection আবার নতুন করে করতে হয়
   })
   .refine(
     (data) =>

@@ -64,16 +64,14 @@ export const updateShipmentStatusZodSchema = z.object({
   note: z.string().trim().optional(),
 });
 
-// Courier assign করার জন্য আলাদা schema — transfer আর last-mile দুটোর একটা নির্দিষ্ট করে দিতে হবে
+
 export const assignCourierZodSchema = z.object({
   courierManId: z.string().uuid("Invalid courier man ID"),
   assignmentType: z.enum([CourierManAssignType.HUB_TRANSFER, CourierManAssignType.LAST_MILE]),
-  // assignmentType: z.enum(["TRANSFER", "LAST_MILE"]),
 });
 
 
-// আগের createShipmentZodSchema এর ভেতরের parcelZodSchema-ই এখানে reuse করা যায়,
-// কিন্তু single parcel add করার জন্য আলাদা schema (array না, single object)
+
 export const addParcelZodSchema = z.object({
   description: z.string().trim().min(1, "Parcel description is required"),
   category: z.string().trim().optional(),
@@ -83,7 +81,7 @@ export const addParcelZodSchema = z.object({
   isFragile: z.boolean().default(false),
 });
 
-// Update করার সময় সব field optional — partial update
+
 export const updateParcelZodSchema = z.object({
   description: z.string().trim().min(1).optional(),
   category: z.string().trim().optional(),

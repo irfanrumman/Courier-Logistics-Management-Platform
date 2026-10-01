@@ -196,6 +196,30 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 
+const logoutUser = catchAsync(async (req: Request, res: Response) => {
+  const result = await AuthService.logoutUser();
+
+  res.clearCookie("accessToken", {
+    httpOnly: true,
+    secure: false,
+    sameSite: "none",
+    // path: "/",
+  });
+
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: false,
+    sameSite: "none",
+    // path: "/",
+  });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: result.message,
+    data: null,
+  });
+});
 
 
 export const AuthController = {
@@ -207,4 +231,5 @@ export const AuthController = {
 	googleLogin,
 	forgotPassword,
 	resetPassword,
+	logoutUser
 };

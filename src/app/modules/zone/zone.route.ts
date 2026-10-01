@@ -41,4 +41,3 @@ router.delete(
 
 export const ZoneRoutes = router;
 
-// zone/            → zone CRUD (admin only)

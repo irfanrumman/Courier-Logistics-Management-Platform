@@ -5,10 +5,7 @@ import { PricingRuleWhereInput } from "../../../generated/prisma/models";
 import { ICreatePricingRulePayload, IUpdatePricingRulePayload } from "./pricingrule.validation";
 import { IQueryForPricingRule } from "./pricingrule.interface";
 
-// ==========================================================
-// ১. তৈরি করার আগে overlap check — একই zone-pair এর জন্য একই weight range এ
-// দুইটা rule থাকলে conflict হবে (কোনটা apply হবে বোঝা যাবে না), তাই আটকে দিচ্ছি
-// ==========================================================
+
 const createPricingRule = async (payload: ICreatePricingRulePayload) => {
   const fromZone = await prisma.zone.findUnique({ where: { id: payload.fromZoneId } });
   if (!fromZone) {
@@ -20,8 +17,6 @@ const createPricingRule = async (payload: ICreatePricingRulePayload) => {
     throw new AppError(httpStatus.NOT_FOUND, "To-Zone Not Found");
   }
 
-  // একই zone pair এর existing rule গুলোর সাথে weight range overlap করছে কিনা চেক —
-  // যেমন existing (0-5kg) থাকলে নতুন (3-8kg) দিলে 3-5 এর মধ্যে দুটো rule ই match করবে, যেটা bug
   const overlappingRule = await prisma.pricingRule.findFirst({
     where: {
       fromZoneId: payload.fromZoneId,
@@ -46,9 +41,7 @@ const createPricingRule = async (payload: ICreatePricingRulePayload) => {
   return pricingRule;
 };
 
-// ==========================================================
-// ২. List view — zone দিয়ে filter করা যায়
-// ==========================================================
+
 const getAllPricingRules = async (query: IQueryForPricingRule) => {
   const limit = query.limit ? Number(query.limit) : 10;
   const page = query.page ? Number(query.page) : 1;
@@ -97,10 +90,6 @@ const getSinglePricingRuleById = async (pricingRuleId: string) => {
   return pricingRule;
 };
 
-// ==========================================================
-// ৩. Update — zone না বদলে শুধু weight range/price বদলানো যায়
-// এখানেও overlap check করা দরকার (নিজেকে বাদ দিয়ে), নাহলে update করেই conflict তৈরি হতে পারে
-// ==========================================================
 const updatePricingRule = async (pricingRuleId: string, payload: IUpdatePricingRulePayload) => {
   const existingRule = await prisma.pricingRule.findUnique({ where: { id: pricingRuleId } });
 
@@ -113,7 +102,7 @@ const updatePricingRule = async (pricingRuleId: string, payload: IUpdatePricingR
 
   const overlappingRule = await prisma.pricingRule.findFirst({
     where: {
-      id: { not: pricingRuleId }, // নিজেকে বাদ দিয়ে চেক করছি
+      id: { not: pricingRuleId }, 
       fromZoneId: existingRule.fromZoneId,
       toZoneId: existingRule.toZoneId,
       weightMin: { lt: newWeightMax },
@@ -149,10 +138,6 @@ const deletePricingRule = async (pricingRuleId: string) => {
   return deletedRule;
 };
 
-// ==========================================================
-// ৪. মূল উদ্দেশ্য — shipment.service.ts এর placeholder formula replace করার জন্য
-// এই ফাংশনটা shipment module থেকে import করে ব্যবহার হবে
-// ==========================================================
 const calculatePrice = async (
   fromZoneId: string,
   toZoneId: string,
@@ -177,10 +162,10 @@ const calculatePrice = async (
   const basePrice = matchingRule.basePrice.toNumber();
   const perKgRate = matchingRule.perKgRate.toNumber();
 
-  // basePrice + (perKgRate * totalWeight) — সহজ linear formula
+
   const totalPrice = basePrice + perKgRate * totalWeightKg;
 
-  return Math.round(totalPrice * 100) / 100; // ২ দশমিক ঘর পর্যন্ত round করছি
+  return Math.round(totalPrice * 100) / 100;  
 };
 
 export const PricingRuleServices = {

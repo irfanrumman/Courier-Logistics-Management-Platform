@@ -41,4 +41,3 @@ router.delete(
 
 export const HubRoutes = router;
 
-// hub/             → hub CRUD (admin/hub manager)

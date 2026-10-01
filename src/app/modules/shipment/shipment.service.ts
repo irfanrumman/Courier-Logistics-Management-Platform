@@ -1300,41 +1300,41 @@ const updateShipmentStatus = async (
   if (updater.role === Role.HUB_MANAGER) {
     hubManagerHubId = await getActiveHubManagerHubId(updater.userId);
   }
+//   if (updater.role === Role.HUB_MANAGER) {
+//     const dbUser = await prisma.user.findUnique({
+//       where: { id: updater.userId },
+//       include: { hubManager: true },
+//     });
 
-  if (updater.role === Role.HUB_MANAGER) {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: updater.userId },
-      include: { hubManager: true },
+
+//   if (
+//      !dbUser ||
+//      dbUser.isDeleted ||
+//      dbUser.status !== UserStatus.ACTIVE ||
+//     !dbUser.hubManager ||
+//      dbUser.hubManager.isDeleted ||
+//     dbUser.hubManager.status !== HubManagerStatus.ACTIVE ||
+//     dbUser.hubManager.verificationStatus !== HubManagerVerificationStatus.APPROVED
+//    ) {
+//       const reason =
+//       !dbUser || dbUser.isDeleted || dbUser.status !== UserStatus.ACTIVE
+//       ? "inactive or deleted"
+//       : !dbUser.hubManager || dbUser.hubManager.isDeleted
+//         ? "missing or deleted"
+//         : dbUser.hubManager.verificationStatus !== HubManagerVerificationStatus.APPROVED
+          // ? "not verified"
+//           : dbUser.hubManager.status; 
+
+//      throw new AppError(
+//     httpStatus.FORBIDDEN,
+//     `Your hub manager account is ${reason}. You cannot update shipment status.`,
+//     );
+//   }
+// }
+  const existingShipment = await prisma.shipment.findUnique({
+     where: { id: shipmentId },
+     include: { codCollection: true }, 
     });
-
-
-  if (
-     !dbUser ||
-     dbUser.isDeleted ||
-     dbUser.status !== UserStatus.ACTIVE ||
-    !dbUser.hubManager ||
-     dbUser.hubManager.isDeleted ||
-    dbUser.hubManager.status !== HubManagerStatus.ACTIVE ||
-    dbUser.hubManager.verificationStatus !== HubManagerVerificationStatus.APPROVED
-   ) {
-      const reason =
-      !dbUser || dbUser.isDeleted || dbUser.status !== UserStatus.ACTIVE
-      ? "inactive or deleted"
-      : !dbUser.hubManager || dbUser.hubManager.isDeleted
-        ? "missing or deleted"
-        : dbUser.hubManager.verificationStatus !== HubManagerVerificationStatus.APPROVED
-          ? "not verified"
-          : dbUser.hubManager.status; 
-
-     throw new AppError(
-    httpStatus.FORBIDDEN,
-    `Your hub manager account is ${reason}. You cannot update shipment status.`,
-    );
-  }
-}
-
-
-  const existingShipment = await prisma.shipment.findUnique({ where: { id: shipmentId } });
 
   if (!existingShipment) {
     throw new AppError(httpStatus.NOT_FOUND, "Shipment Not Found");
@@ -1344,21 +1344,43 @@ const updateShipmentStatus = async (
     assertShipmentBelongsToHub(existingShipment, hubManagerHubId);
   }
   
-  const TERMINAL_STATUSES: ShipmentStatus[] = [
-  "DELIVERED",
-  "FAILED_DELIVERY",
-  "RETURNED",
-  "CANCELLED",
-];
+  const FINAL_STATUSES: ShipmentStatus[] = [
+    ShipmentStatus.DELIVERED,
+    ShipmentStatus.FAILED_DELIVERY,
+    ShipmentStatus.RETURNED,
+    ShipmentStatus.CANCELLED,
+  ];
 
-  if (TERMINAL_STATUSES.includes(existingShipment.status)) {
+  if (FINAL_STATUSES.includes(existingShipment.status)) {
     throw new AppError(
       httpStatus.CONFLICT,
       `Shipment is already in a final state (${existingShipment.status}), status cannot be changed further`,
     );
   }
 
-  const isNewStatusTerminal = TERMINAL_STATUSES.includes(payload.status);
+  if (
+    payload.status === ShipmentStatus.DELIVERED &&
+    existingShipment.codAmount != null
+  ) {
+    if (!existingShipment.codCollection) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "Cash has not been recorded as collected from the receiver yet",
+      );
+    }
+
+    if (!existingShipment.codCollection.submittedToHubAt) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "Collected cash must be submitted to and confirmed by the hub before marking as delivered",
+      );
+    }
+  }
+  
+
+  const isNewStatusTerminal = FINAL_STATUSES.includes(payload.status);
+
+  const shouldFreeCouriers = isNewStatusTerminal;
 
   const updatedShipment = await prisma.$transaction(async (tx) => {
     const shipment = await tx.shipment.update({
@@ -1382,7 +1404,7 @@ const updateShipmentStatus = async (
       },
     });
 
-    if (isNewStatusTerminal) {
+    if (shouldFreeCouriers) {
       const courierIdsToFree = [
         existingShipment.transferCourierManId,
         existingShipment.lastMileCourierManId,
@@ -1617,7 +1639,6 @@ const shipmentAsDelivered = async (
 
 
 //  Parcel add/update/delete — in PENDING status
-
 
 const addParcel = async (shipmentId: string, payload: IAddParcelPayload, user: RequestUser) => {
 

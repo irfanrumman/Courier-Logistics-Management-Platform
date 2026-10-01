@@ -46,6 +46,3 @@ router.patch(
 
 
 export const UserRoutes = router;
-
-
-//  user/            → getMe,

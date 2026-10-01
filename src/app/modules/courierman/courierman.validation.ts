@@ -1,7 +1,7 @@
 import { z } from "zod";
+import { CourierManAssignType } from "../../../generated/prisma/enums";
 
-// Apply করার সময় courier অবশ্যই তার type (HUB_TRANSFER নাকি LAST_MILE) বেছে নেবে,
-// কারণ এটা পরে assignment logic এ ব্যবহার হবে (shipment.service এ)
+
 export const applyAsCourierManZodSchema = z.object({
   user: z.object({
     name: z.string().trim().min(2, "Name must be at least 2 characters long"),
@@ -10,11 +10,11 @@ export const applyAsCourierManZodSchema = z.object({
     gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
   }),
   courierMan: z.object({
-    courierType: z.enum(["HUB_TRANSFER", "LAST_MILE"]),
-    vehicleType: z.string().trim().optional(), // যেমন "Bike", "Van"
+    courierManAssignType: z.enum([CourierManAssignType.HUB_TRANSFER, CourierManAssignType.LAST_MILE]),
+    vehicleType: z.string().trim().optional(), 
     vehicleNumber: z.string().trim().optional(),
     licenseNumber: z.string().trim().optional(),
-    maxCapacity: z.number().int().positive().optional(), // কতগুলো parcel/kg বহন করতে পারবে
+    maxCapacity: z.number().int().positive().optional(), 
     bio: z.string().trim().max(1000).optional(),
     qualifications: z.string().trim().optional(),
     experienceYears: z.number().int().min(0).optional(),
@@ -26,7 +26,7 @@ export const courierManEmailVerifyZodSchema = z.object({
   otp: z.string().length(6, "OTP must be 6 digits"),
 });
 
-// Admin approve/reject করার সময়
+
 export const approveCourierManZodSchema = z
   .object({
     courierManId: z.string().uuid("Invalid courier man ID"),
@@ -38,8 +38,7 @@ export const approveCourierManZodSchema = z
     { message: "Rejection reason is required when rejecting", path: ["rejectionReason"] },
   );
 
-// Courier নিজে profile-এর personal/professional info আপডেট করবে
-// (rating, totalDeliveries, verificationStatus — এসব কখনো এখানে থাকবে না, system/admin controlled)
+
 export const updateCourierManProfileZodSchema = z.object({
   user: z
     .object({
@@ -59,18 +58,18 @@ export const updateCourierManProfileZodSchema = z.object({
     .optional(),
 });
 
-// Courier নিজে তার "available কিনা" টা toggle করবে (নতুন shipment নিতে পারবে কিনা)
+
 export const toggleAvailabilityZodSchema = z.object({
   isAvailable: z.boolean(),
 });
 
-// Courier নিজের live location আপডেট করবে (mobile app থেকে, delivery tracking এর জন্য)
+
 export const updateLocationZodSchema = z.object({
   currentLatitude: z.number().min(-90).max(90),
   currentLongitude: z.number().min(-180).max(180),
 });
 
-// Admin hub/zone assign করবে, status বদলাবে
+
 export const adminUpdateCourierManZodSchema = z.object({
   currentHubId: z.string().uuid("Invalid hub ID").optional(),
   zoneId: z.string().uuid("Invalid zone ID").optional(),

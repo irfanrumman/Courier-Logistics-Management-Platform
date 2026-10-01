@@ -30,9 +30,9 @@ router.post(
   MerchantController.verifyMerchantEmail,
 );
 
-router.get("/my-profile", 
-  auth(Role.MERCHANT), 
-  MerchantController.getMyMerchantProfile);
+// router.get("/my-profile", 
+//   auth(Role.MERCHANT), 
+//   MerchantController.getMyMerchantProfile);
 
 router.patch(
   "/update-my-profile",
@@ -71,4 +71,3 @@ router.delete(
 
 export const MerchantRoutes = router;
 
-// merchant/        → merchant registration, profile, admin: verify/reject/list merchants

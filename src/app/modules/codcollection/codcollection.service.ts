@@ -49,14 +49,14 @@ if (payload.amountCollected <= 0) {
   );
 }
 
-  // যে courier record করছে, সেই courier এর CourierMan profile খুঁজছি (userId দিয়ে)
+ 
   const courierMan = await prisma.courierMan.findUnique({ where: { userId: user.userId } });
 
   if (!courierMan) {
     throw new AppError(httpStatus.FORBIDDEN, "Courier Man Profile Not Found");
   }
 
-  // শুধু এই shipment এ assigned last-mile courier ই collection record করতে পারবে
+  
   if (shipment.lastMileCourierManId !== courierMan.id) {
     throw new AppError(
       httpStatus.FORBIDDEN,
@@ -64,15 +64,13 @@ if (payload.amountCollected <= 0) {
     );
   }
 
-  // একটা shipment এর জন্য একটাই CodCollection row (schema তে shipmentId @unique)
+ 
   if (shipment.codCollection) {
     throw new AppError(httpStatus.CONFLICT, "Collection Has Already Been Recorded For This Shipment");
   }
 
-  // Collected amount shipment এর codAmount এর সাথে মিলছে কিনা যাচাই — mismatch হলে সতর্ক করা উচিত,
-  // কিন্তু সম্পূর্ণ আটকাচ্ছি না (courier হয়তো কম/বেশি নিয়েছে, সেটাও রেকর্ড থাকা দরকার)
   if (shipment.codAmount && payload.amountCollected !== shipment.codAmount.toNumber()) {
-    // শুধু log/note রাখার মতো জায়গা, এখানে শুধু আটকাচ্ছি না — চাইলে admin পরে review করবে
+   
   }
 
   const collection = await prisma.$transaction(async (tx) => {
@@ -200,10 +198,7 @@ const markRemitted = async (codCollectionId: string, payload: IMarkRemittedPaylo
   return updatedCollection;
 };
 
-// ==========================================================
-// ৩. Admin এর জন্য সব collection list — বিশেষ করে "কোনগুলো এখনো remit করা হয়নি"
-// এই filter দিয়ে quick দেখা যাবে কোন merchant/sender দের টাকা এখনো বাকি
-// ==========================================================
+
 const getAllCollections = async (query: IQueryForCodCollection) => {
   const limit = query.limit ? Number(query.limit) : 10;
   const page = query.page ? Number(query.page) : 1;
@@ -251,9 +246,7 @@ const getAllCollections = async (query: IQueryForCodCollection) => {
   };
 };
 
-// ==========================================================
-// ৪. Single collection দেখা
-// ==========================================================
+
 const getSingleCollection = async (codCollectionId: string) => {
   const collection = await prisma.codCollection.findUnique({
     where: { id: codCollectionId },
@@ -270,9 +263,6 @@ const getSingleCollection = async (codCollectionId: string) => {
   return collection;
 };
 
-// ==========================================================
-// ৫. একজন courier নিজে যা যা collect করেছে তার history দেখা (self-service)
-// ==========================================================
 const getMyCollections = async (query: IQueryForCodCollection, user: RequestUser) => {
   const courierMan = await prisma.courierMan.findUnique({ where: { userId: user.userId } });
 
@@ -306,7 +296,7 @@ const getMyCollections = async (query: IQueryForCodCollection, user: RequestUser
   };
 };
 
-// codcollection.service.ts এ যোগ করো
+
 const getMySenderCODCollections = async (query: IQueryForCodCollection, user: RequestUser) => {
   const limit = query.limit ? Number(query.limit) : 10;
   const page = query.page ? Number(query.page) : 1;
@@ -315,7 +305,7 @@ const getMySenderCODCollections = async (query: IQueryForCodCollection, user: Re
   const sortOrder = query.sortOrder ? query.sortOrder : "desc";
 
   const andConditions: CodCollectionWhereInput[] = [
-    { shipment: { senderId: user.userId } }, // নিজের পাঠানো shipment এর collection গুলোই
+    { shipment: { senderId: user.userId } },  
   ];
 
   if (query.isRemittedToSender !== undefined) {

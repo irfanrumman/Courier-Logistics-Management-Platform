@@ -151,31 +151,31 @@ const verifyCustomerEmail = async (payload: IVerifyCustomerEmailPayload
 
 };
 
-const getMyCustomerProfile = async (user: RequestUser) => {
+// const getMyCustomerProfile = async (user: RequestUser) => {
 
-  const customer = await prisma.customer.findFirst({
-    where: {
-      userId: user.userId,
-      isDeleted: false,
-    },
-    include: { 
-        user: {
-             omit: { 
-                password: true 
-            } 
-        } 
-    },
-  });
+//   const customer = await prisma.customer.findFirst({
+//     where: {
+//       userId: user.userId,
+//       isDeleted: false,
+//     },
+//     include: { 
+//         user: {
+//              omit: { 
+//                 password: true 
+//             } 
+//         } 
+//     },
+//   });
 
-  if (!customer) {
-    throw new AppError(
-      httpStatus.NOT_FOUND,
-      "Customer Profile not found",
-    );
-  }
+//   if (!customer) {
+//     throw new AppError(
+//       httpStatus.NOT_FOUND,
+//       "Customer Profile not found",
+//     );
+//   }
 
-  return customer;
-};
+//   return customer;
+// };
 
 const updateMyCustomerProfile = async (
   user: RequestUser,
@@ -339,9 +339,6 @@ const getAllCustomers = async (query: IQuery) => {
 
 const getSingleCustomerById = async (customerId: string) => {
 
-
-  
-
   const customer = await prisma.customer.findUnique({
     where: {
       id: customerId,
@@ -417,8 +414,6 @@ const adminUpdateCustomerStatus = async (
 
 const adminDeleteCustomer = async (customerId: string) => {
 
-
-   
   const existingCustomer = await prisma.customer.findUnique({
     where: {
       id: customerId,
@@ -469,7 +464,7 @@ const adminDeleteCustomer = async (customerId: string) => {
 export const CustomerService = {
   registerCustomer,
   verifyCustomerEmail,
-  getMyCustomerProfile,
+  // getMyCustomerProfile,
   updateMyCustomerProfile,
   getAllCustomers,
   getSingleCustomerById,

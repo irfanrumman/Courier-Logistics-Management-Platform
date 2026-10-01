@@ -12,7 +12,7 @@ import { prisma } from "../../lib/prisma";
 import { redisClient } from "../../lib/redis";
 import { RequestUser } from "../../middleware/checkAuth";
 import { AppError } from "../../utils/AppError";
-import { CourierManVerificationStatus, Role, UserStatus } from "../../../generated/prisma/enums";
+import { CourierManAssignType, CourierManVerificationStatus, Role, UserStatus } from "../../../generated/prisma/enums";
 import { generateSystemPassword } from "../../utils/generateSystemPassword";
 import { CourierManWhereInput } from "../../../generated/prisma/models";
 import {
@@ -25,10 +25,8 @@ import {
   IAdminUpdateCourierManPayload,
 } from "./courierman.validation";
 
-// ==========================================================
-// ১. Registration — resume/file upload নেই এখানে (hub manager এর মতো নয়),
-// কারণ courier man এর জন্য bio/resume optional, শুধু driving-related তথ্য গুরুত্বপূর্ণ
-// ==========================================================
+
+
 const applyAsCourierMan = async (payload: IApplyAsCourierManPayload) => {
   const isUserExists = await prisma.user.findUnique({
     where: { email: payload.user.email },
@@ -38,8 +36,6 @@ const applyAsCourierMan = async (payload: IApplyAsCourierManPayload) => {
     throw new AppError(httpStatus.CONFLICT, "User already exists with this email");
   }
 
-  // vehicleNumber/licenseNumber @unique — আগেই চেক করে নিলাম, নাহলে Prisma constraint error দিবে
-  // (তখন error message কম বোধগম্য হয়, তাই আগেভাগে ভালো message দিলাম)
   if (payload.courierMan.vehicleNumber) {
     const existingVehicle = await prisma.courierMan.findUnique({
       where: { vehicleNumber: payload.courierMan.vehicleNumber },
@@ -67,7 +63,7 @@ const applyAsCourierMan = async (payload: IApplyAsCourierManPayload) => {
       role: Role.COURIER_MAN,
       courierMan: {
         create: {
-          courierType: payload.courierMan.courierType,
+          courierManAssignType: payload.courierMan.courierManAssignType,
           vehicleType: payload.courierMan.vehicleType,
           vehicleNumber: payload.courierMan.vehicleNumber,
           licenseNumber: payload.courierMan.licenseNumber,
@@ -81,7 +77,6 @@ const applyAsCourierMan = async (payload: IApplyAsCourierManPayload) => {
     include: { courierMan: true },
   });
 
-  // OTP flow — hub manager এর সাথে হুবহু একই pattern, শুধু redis key prefix আলাদা
   const expirationSeconds = 60 * 60;
   const otpKey = `courierMan-application-otp:${payload.user.email}`;
   const otpValue = crypto.randomInt(100000, 1000000).toString();
@@ -108,9 +103,6 @@ const applyAsCourierMan = async (payload: IApplyAsCourierManPayload) => {
   return courierManApplication;
 };
 
-// ==========================================================
-// ২. Email verify — hub manager এর সাথে identical logic
-// ==========================================================
 const verifyCourierManEmail = async (payload: ICourierManEmailVerifyPayload) => {
   const otp = payload.otp;
   const email = payload.email.trim().toLowerCase();
@@ -156,10 +148,6 @@ const verifyCourierManEmail = async (payload: ICourierManEmailVerifyPayload) => 
   return verifiedUser;
 };
 
-// ==========================================================
-// ৩. Admin approve/reject — employeeId generate হচ্ছে না এখানে,
-// কারণ CourierMan schema তে employeeId field-ই নেই (শুধু HubManager এর ছিল)
-// ==========================================================
 const approveCourierMan = async (payload: IApproveCourierManPayload, reviewer: RequestUser) => {
   const { courierManId, verificationStatus, rejectionReason } = payload;
 
@@ -192,7 +180,7 @@ const approveCourierMan = async (payload: IApproveCourierManPayload, reviewer: R
 
   const isApproved = verificationStatus === CourierManVerificationStatus.APPROVED;
 
-  // Approve হলেই password generate + email — reject হলে password লাগবেই না
+ 
   let randomPassword: string | null = null;
   if (isApproved) {
     randomPassword = generateSystemPassword();
@@ -279,15 +267,14 @@ const getAllCourierMans = async (query: IQueryForCourier) => {
     });
   }
 
-  if (query.courierType) {
-    andConditions.push({ courierType: query.courierType as "HUB_TRANSFER" | "LAST_MILE" });
+  if (query.courierManAssignType) {
+    andConditions.push({ courierManAssignType: query.courierManAssignType as "HUB_TRANSFER" | "LAST_MILE" });
   }
 
   if (query.currentStatus) {
     andConditions.push({ currentStatus: query.currentStatus as any });
   }
 
-  // isAvailable="true"/"false" — query string সবসময় string আসে, তাই compare করতে হবে
   if (query.isAvailable !== undefined) {
     andConditions.push({ isAvailable: query.isAvailable === "true" });
   }
@@ -406,7 +393,6 @@ const toggleAvailability = async (payload: IToggleAvailabilityPayload, user: Req
     throw new AppError(httpStatus.GONE, "Courier Man Profile Has Been Deleted");
   }
 
-  // যদি admin কর্তৃক SUSPENDED/ON_LEAVE করা থাকে, নিজে available=true করতে পারবে না
   if (existingCourierMan.currentStatus !== "ACTIVE") {
     throw new AppError(
       httpStatus.FORBIDDEN,

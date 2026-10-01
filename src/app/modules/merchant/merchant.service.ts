@@ -83,7 +83,7 @@ const registerMerchant = async (
     throw new AppError(httpStatus.BAD_REQUEST, "TIN image is required");
   }
 
-  // Trade License upload — hub manager এর resume upload এর মতো ইনলাইন Promise
+ 
   const tradeLicenseUploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
     cloudinary.uploader
       .upload_stream(
@@ -105,7 +105,7 @@ const registerMerchant = async (
       .end(tradeLicenseFile.buffer);
   });
 
-  // NID Front upload
+ 
   const nidFrontUploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
     cloudinary.uploader
       .upload_stream(
@@ -127,7 +127,7 @@ const registerMerchant = async (
       .end(nidFrontFile.buffer);
   });
 
-  // NID Back upload
+
   const nidBackUploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
     cloudinary.uploader
       .upload_stream(
@@ -149,7 +149,7 @@ const registerMerchant = async (
       .end(nidBackFile.buffer);
   });
 
-  // TIN upload
+
   const tinUploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
     cloudinary.uploader
       .upload_stream(
@@ -171,7 +171,7 @@ const registerMerchant = async (
       .end(tinFile.buffer);
   });
 
-  // Shop image upload — ঐচ্ছিক, তাই file থাকলে তবেই upload করছি
+ 
   let shopUploadResult: UploadApiResponse | null = null;
   if (shopFile) {
     shopUploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
@@ -303,18 +303,18 @@ const verifyMerchantEmail = async (payload: IMerchantEmailVerifyPayload) => {
 };
 
 
-const getMyMerchantProfile = async (user: RequestUser) => {
-  const merchantProfile = await prisma.merchantProfile.findUnique({
-    where: { userId: user.userId },
-    include: { user: { omit: { password: true } } },
-  });
+// const getMyMerchantProfile = async (user: RequestUser) => {
+//   const merchantProfile = await prisma.merchantProfile.findUnique({
+//     where: { userId: user.userId },
+//     include: { user: { omit: { password: true } } },
+//   });
 
-  if (!merchantProfile) {
-    throw new AppError(httpStatus.NOT_FOUND, "Merchant Profile Not Found");
-  }
+//   if (!merchantProfile) {
+//     throw new AppError(httpStatus.NOT_FOUND, "Merchant Profile Not Found");
+//   }
 
-  return merchantProfile;
-};
+//   return merchantProfile;
+// };
 
 
 const updateMerchantProfile = async (payload: IUpdateMerchantProfilePayload, user: RequestUser) => {
@@ -570,7 +570,7 @@ const adminDeleteMerchant = async (merchantId: string) => {
 export const MerchantServices = {
   registerMerchant,
   verifyMerchantEmail,
-  getMyMerchantProfile,
+  // getMyMerchantProfile,
   updateMerchantProfile,
   verifyMerchant,
   getAllMerchants,
