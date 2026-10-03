@@ -28,10 +28,20 @@ router.post(
 	HubManagerController.applyAsHubManager,
 );
 
+
 router.post(
 	"/verify-email",
 	validateRequest(hubManagerValidation.hubManagerEmailVerifyZodSchema),
 	HubManagerController.verifyHubManagerEmail,
+);
+
+router.patch(
+	"/update-my-profile",
+	auth(Role.HUB_MANAGER),
+	validateRequest(
+		hubManagerValidation.UpdateHubManagerProfileValidationZodSchema,
+	),
+	HubManagerController.updateHubManagerProfile,
 );
 
 router.post(
@@ -46,14 +56,7 @@ router.get(
 	HubManagerController.getAllHubManagers,
 );
 
-router.patch(
-	"/update-my-profile",
-	auth(Role.HUB_MANAGER),
-	validateRequest(
-		hubManagerValidation.UpdateHubManagerProfileValidationZodSchema,
-	),
-	HubManagerController.updateHubManagerProfile,
-);
+
 
 router.get(
 	"/single-hub-manager/:hubManagerId",
@@ -67,6 +70,7 @@ router.patch(
 	validateRequest(hubManagerValidation.adminUpdateHubManagerZodSchema),
 	HubManagerController.adminUpdateHubManager,
 );
+
 
 router.delete(
 	"/delete/:hubManagerId",

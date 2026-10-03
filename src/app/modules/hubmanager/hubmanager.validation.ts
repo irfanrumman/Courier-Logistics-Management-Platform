@@ -4,7 +4,12 @@ import { Gender, HubManagerStatus } from "../../../generated/prisma/enums";
 const applyAsHubManagerZodSchema = z.object({
 	user: z.object({
 		name: z.string().trim().min(2, "Name must be at least 2 characters long"),
-		email: z.email("Invalid email address").trim().toLowerCase(),
+		email: z
+			.string()
+			.trim()
+			.toLowerCase()
+			.pipe(z.email("Invalid email address")),
+
 		phone: z.string().trim().optional(),
 		gender: z.enum(Gender).optional(),
 	}),
@@ -15,7 +20,7 @@ const applyAsHubManagerZodSchema = z.object({
 			.max(1000, "Bio cannot exceed 1000 characters")
 			.optional(),
 		qualifications: z.string().trim().min(2, "Qualifications are required"),
-		experienceYears: z
+		experienceYears: z.coerce
 			.number()
 			.int("Experience years must be an integer")
 			.min(0, "Experience years cannot be negative"),

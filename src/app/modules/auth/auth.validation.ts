@@ -57,10 +57,24 @@ const ResetPasswordZodSchema = z.object({
 	otp: z.string().length(6),
 });
 
+export const ChangePasswordZodSchema = z.object({
+  oldPassword: z.string().min(1, "Old password is required"),
+  newPassword: z
+    .string()
+    .min(8, "New password must be at least 8 characters")
+    .regex(/[a-z]/, "New password must contain at least 1 lowercase letter")
+    .regex(/[A-Z]/, "New password must contain at least 1 uppercase letter")
+    .regex(/[0-9]/, "New password must contain at least 1 number")
+    .regex(/[^A-Za-z0-9]/, "New password must contain at least 1 special character"),
+});
+
+export type IChangePasswordPayload = z.infer<typeof ChangePasswordZodSchema>;
+
 export const UserValidation = {
 	customerRegistrationZodSchema,
 	customerEmailVerifyZodSchema,
 	LoginZodSchema,
 	ForgotPasswordZodSchema,
 	ResetPasswordZodSchema,
+	ChangePasswordZodSchema
 };

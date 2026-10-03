@@ -10,7 +10,6 @@ import { jwtUtils } from "../utils/jwt";
 
 export interface RequestUser {
 	email: string;
-	name: string;
 	userId: string;
 	role: Role;
 }
@@ -44,7 +43,7 @@ export const auth = (...requiredRoles: Role[]) => {
 			throw new AppError(httpStatus.UNAUTHORIZED, verifiedToken.error);
 		}
 
-		const { email, name, userId, role } = verifiedToken.data as JwtPayload;
+		const { email, userId, role } = verifiedToken.data as JwtPayload;
 
 		if (requiredRoles.length && !requiredRoles.includes(role)) {
 			throw new AppError(
@@ -57,7 +56,6 @@ export const auth = (...requiredRoles: Role[]) => {
 			where: {
 				id: userId,
 				email,
-				name,
 				role,
 			},
 		});
@@ -85,7 +83,6 @@ export const auth = (...requiredRoles: Role[]) => {
 
 		req.user = {
 			email,
-			name,
 			userId,
 			role,
 		};

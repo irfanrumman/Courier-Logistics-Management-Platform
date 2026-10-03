@@ -651,7 +651,7 @@ const adminDeleteHubManager = async (hubManagerId: string) => {
 		throw new AppError(httpStatus.GONE, "Hub Manager Already Deleted");
 	}
 
-	const deletedHubManager = await prisma.$transaction(async (tx) => {
+	await prisma.$transaction(async (tx) => {
 		const hubManager = await tx.hubManager.update({
 			where: { id: hubManagerId },
 			data: {

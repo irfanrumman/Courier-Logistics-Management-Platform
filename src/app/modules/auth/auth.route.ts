@@ -54,6 +54,13 @@ router.post(
 );
 
 router.post(
+  "/change-password",
+  auth(Role.ADMIN, Role.SUPER_ADMIN, Role.COURIER_MAN, Role.HUB_MANAGER, Role.MERCHANT, Role.CUSTOMER),
+  validateRequest(UserValidation.ChangePasswordZodSchema),
+  AuthController.changePassword,
+);
+
+router.post(
 	"/logout",
 	auth(
 		Role.ADMIN,

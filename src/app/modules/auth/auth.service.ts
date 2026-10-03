@@ -26,6 +26,8 @@ import type {
 	IResetPasswordPayload,
 	IVerifyEmailPayload,
 } from "./auth.interface";
+import { IChangePasswordPayload } from "./auth.validation";
+import { RequestUser } from "../../middleware/checkAuth";
 
 const registerCustomer = async (payload: IRegisterCustomerPayload) => {
 	const {
@@ -732,11 +734,49 @@ const resetPassword = async (payload: IResetPasswordPayload) => {
 	});
 };
 
+const changePassword = async (payload: IChangePasswordPayload, user: RequestUser) => {
+
+  const existingUser = await prisma.user.findUnique({ where: { id: user.userId } });
+
+  if (!existingUser) {
+    throw new AppError(httpStatus.NOT_FOUND, "User Not Found");
+  }
+
+  if (!existingUser.password) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "This account uses Google login and has no password to change",
+    );
+  }
+
+  const isOldPasswordMatched = await bcrypt.compare(payload.oldPassword, existingUser.password);
+
+  if (!isOldPasswordMatched) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Old Password Is Incorrect");
+  }
+
+  const hashedNewPassword = await bcrypt.hash(
+    payload.newPassword,
+    Number(config.bcrypt_salt_rounds),
+  );
+
+  await prisma.user.update({
+    where: { id: user.userId },
+    data: {
+      password: hashedNewPassword,
+    },
+  });
+
+  return { message: "Password changed successfully" };
+};
+
 const logoutUser = async () => {
 	return {
 		message: "Logged out successfully",
 	};
 };
+
+
 
 export const AuthService = {
 	registerCustomer,
@@ -747,5 +787,6 @@ export const AuthService = {
 	googleLogin,
 	forgotPassword,
 	resetPassword,
+	changePassword,
 	logoutUser,
 };
