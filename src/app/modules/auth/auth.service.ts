@@ -106,7 +106,10 @@ const registerCustomer = async (payload: IRegisterCustomerPayload) => {
 	const html = await ejs.renderFile(tempatePath, templateData);
 
 	await transporter.sendMail({
-		from: config.email_sender,
+		from: {
+					name: "Courier & Logistics Management",
+					address: config.email_sender,
+				},
 		to: email,
 		subject: "Email Verification",
 		html,
@@ -171,8 +174,6 @@ const verifyCustomerEmail = async (payload: IVerifyEmailPayload) => {
 			emailVerified: true,
 			customer: {
 				create: {
-					name: customerPayload.name,
-					email: customerPayload.email,
 					defaultAddressLine: customerPayload.defaultAddressLine,
 					defaultDistrict: customerPayload.defaultDistrict,
 					defaultPostalCode: customerPayload.defaultPostalCode,
@@ -198,7 +199,10 @@ const verifyCustomerEmail = async (payload: IVerifyEmailPayload) => {
 	const html = await ejs.renderFile(tempatePath, templateData);
 
 	await transporter.sendMail({
-		from: config.email_sender,
+		from: {
+			name: "Courier & Logistics Management System",
+			address: config.email_sender
+		},
 		to: email,
 		subject: "Welcome To Courier & Logistic Management System",
 		html,
@@ -425,6 +429,7 @@ const refreshToken = async (token: string) => {
 };
 
 const googleLogin = async (payload: IGoogleLoginPayload) => {
+
 	let googleIdTokenPayload: TokenPayload | null | undefined = null;
 	try {
 		const ticket = await googleClient.verifyIdToken({
@@ -514,8 +519,10 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 					emailVerified: true,
 					customer: {
 						create: {
-							name: googleIdTokenPayload.name,
-							email: googleIdTokenPayload.email,
+							defaultAddressLine: null,
+					defaultDistrict: null,
+					defaultPostalCode: null,
+					defaultThana: null,
 						},
 					},
 				},
@@ -532,7 +539,10 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 			const html = await ejs.renderFile(tempatePath, templateData);
 
 			await transporter.sendMail({
-				from: config.email_sender,
+				from: {
+					name: "Courier & Logistics Management System",
+					address: config.email_sender
+				},
 				to: user.email,
 				subject: "Welcome To Courier & Logistic Management System",
 				html,
@@ -633,7 +643,10 @@ const forgotPassword = async (payload: IForgotPasswordPayload) => {
 	const html = await ejs.renderFile(tempatePath, templateData);
 
 	await transporter.sendMail({
-		from: config.email_sender,
+		from: {
+			name: "Courier & Logistics Management System",
+			address: config.email_sender
+		},
 		to: isUserExist.email,
 		subject: "Forgot Password",
 		html,
@@ -709,7 +722,10 @@ const resetPassword = async (payload: IResetPasswordPayload) => {
 	const html = await ejs.renderFile(tempatePath, templateData);
 
 	await transporter.sendMail({
-		from: config.email_sender,
+		from: {
+			name: "Courier & Logistics Management System",
+			address: config.email_sender
+		},
 		to: isUserExist.email,
 		subject: "Password Changed",
 		html,

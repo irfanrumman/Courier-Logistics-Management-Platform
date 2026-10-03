@@ -1,4 +1,6 @@
 import z from "zod";
+import { Gender } from "../../../generated/prisma/enums";
+
 
 const customerRegistrationZodSchema = z.object({
 	name: z
@@ -14,7 +16,7 @@ const customerRegistrationZodSchema = z.object({
 
 		.regex(/[0-9]/, "Password must contain atleast 1 Number")
 		.regex(/[^A-Za-z0-9]/, "Password must contain atleast 1 Special Character"),
-	gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+	gender: z.enum([Gender.MALE, Gender.FEMALE, Gender.OTHER]).optional(),
 	phone: z.string().trim().optional(),
 	defaultAddressLine: z.string().trim().optional(),
 	defaultDistrict: z.string().trim().optional(),

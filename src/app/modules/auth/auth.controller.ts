@@ -154,7 +154,7 @@ const googleLogin = catchAsync(async (req: Request, res: Response) => {
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
-		message: "New tokens generated successfully",
+		message: "Account created successfully By Google",
 		data: {
 			accessToken,
 			refreshToken,
