@@ -26,8 +26,8 @@ import type {
 	IResetPasswordPayload,
 	IVerifyEmailPayload,
 } from "./auth.interface";
-import { IChangePasswordPayload } from "./auth.validation";
-import { RequestUser } from "../../middleware/checkAuth";
+import type { IChangePasswordPayload } from "./auth.validation";
+import type { RequestUser } from "../../middleware/checkAuth";
 
 const registerCustomer = async (payload: IRegisterCustomerPayload) => {
 	const {
@@ -174,6 +174,7 @@ const verifyCustomerEmail = async (payload: IVerifyEmailPayload) => {
 			phone: customerPayload.phone,
 			status: UserStatus.ACTIVE,
 			emailVerified: true,
+			needPasswordChange: true,
 			customer: {
 				create: {
 					defaultAddressLine: customerPayload.defaultAddressLine,

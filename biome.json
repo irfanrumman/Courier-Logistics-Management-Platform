@@ -23,7 +23,8 @@
 		"rules": {
 			"preset": "recommended",
 			"suspicious": {
-				 "noExplicitAny" : "info"
+				 "noExplicitAny" : "info",
+				 "noTsIgnore": "off"
 			},
 			"complexity": {
 				"noCommaOperator": "info"

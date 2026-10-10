@@ -7,17 +7,17 @@ import { validateRequest } from "../../middleware/validateRequest";
 
 const router = Router();
 
-router.post(
-	"/register",
-	validateRequest(customerValidation.registerCustomerZodSchema),
-	CustomerController.registerCustomer,
-);
+// router.post(
+// 	"/register",
+// 	validateRequest(customerValidation.registerCustomerZodSchema),
+// 	CustomerController.registerCustomer,
+// );
 
-router.post(
-	"/verify-email",
-	validateRequest(customerValidation.customerEmailVerifyZodSchema),
-	CustomerController.verifyCustomerEmail,
-);
+// router.post(
+// 	"/verify-email",
+// 	validateRequest(customerValidation.customerEmailVerifyZodSchema),
+// 	CustomerController.verifyCustomerEmail,
+// );
 
 // router.get(
 //   "/my-profile",

@@ -22,7 +22,7 @@ export interface IQueryForCourier {
 	sortOrder?: "asc" | "desc";
 	searchTerm?: string;
 	email?: string;
-	courierManAssignType?: string;
+	// courierManAssignType?: string;
 	currentStatus?: string;
 	isAvailable?: string;
 	verificationStatus?: string;

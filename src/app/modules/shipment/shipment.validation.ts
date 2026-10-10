@@ -50,29 +50,49 @@ export const createShipmentZodSchema = z
 		path: ["codAmount"],
 	});
 
-export const updateShipmentStatusZodSchema = z.object({
+export const updateShipmentStatusZodSchema = z
+	.object({
 	status: z.enum([
 		"PICKUP_REQUESTED",
-		"COURIER_ASSIGNED",
 		"PICKED_UP",
 		"AT_ORIGIN_HUB",
 		"IN_TRANSIT",
 		"AT_DESTINATION_HUB",
-		"OUT_FOR_DELIVERY",
 		"DELIVERED",
 		"FAILED_DELIVERY",
 		"RETURNED",
 	]),
-	note: z.string().trim().optional(),
-});
+		courierManId: z.string().uuid("Invalid courier man ID").optional(),
+		note: z.string().trim().optional(),
+	})
+	.refine(
+		(data) =>
+			!["COURIER_ASSIGNED", "OUT_FOR_DELIVERY"].includes(data.status) ||
+			!!data.courierManId,
+		{
+			message: "courierManId is required when assigning a courier",
+			path: ["courierManId"],
+		},
+	);
 
 export const assignCourierZodSchema = z.object({
 	courierManId: z.string().uuid("Invalid courier man ID"),
 	assignmentType: z.enum([
 		CourierManAssignType.HUB_TRANSFER,
-		CourierManAssignType.LAST_MILE,
+		CourierManAssignType.DELIVERY_TO_RECEIVER,
+		CourierManAssignType.PICKUP_TO_HUB,
 	]),
 });
+
+export const courierShipmentActionZodSchema = z.object({
+	note: z.string().trim().optional(),
+});
+
+
+export const courierFailDeliveryZodSchema = z.object({
+	note: z.string().trim().min(3, "Failure reason is required"),
+});
+
 
 export const addParcelZodSchema = z.object({
 	description: z.string().trim().min(1, "Parcel description is required"),
@@ -94,6 +114,7 @@ export const updateParcelZodSchema = z.object({
 
 export const payShipmentSchema = z.object({
 	shipmentId: z.string().trim(),
+	paymentMethod: z.enum(["BKASH", "STRIPE"]),
 });
 
 export type IAddParcelPayload = z.infer<typeof addParcelZodSchema>;
@@ -112,4 +133,6 @@ export const shipmentValidation = {
 	assignCourierZodSchema,
 	addParcelZodSchema,
 	updateParcelZodSchema,
+	courierShipmentActionZodSchema,
+	courierFailDeliveryZodSchema,
 };

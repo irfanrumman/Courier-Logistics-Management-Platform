@@ -19,6 +19,7 @@ import { ShipmentRoutes } from "./app/modules/shipment/shipment.route";
 import { PricingRuleRoutes } from "./app/modules/pricingrule/pricingrule.route";
 import { PaymentRoutes } from "./app/modules/payment/payment.route";
 import { CodCollectionRoutes } from "./app/modules/codcollection/codcollection.route";
+import { PaymentController } from "./app/modules/payment/payment.controller";
 
 const app: Application = express();
 
@@ -30,6 +31,12 @@ app.use(
 		origin: config.frontend_url,
 		credentials: true,
 	}),
+);
+
+
+app.post("/api/payments/webhook",
+    express.raw({ type: "application/json" }),
+   PaymentController.stripeWebhook
 );
 
 app.use(

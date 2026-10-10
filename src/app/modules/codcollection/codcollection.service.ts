@@ -9,7 +9,7 @@ import type {
 	IConfirmHubReceiptPayload,
 } from "./codcollection.validation";
 import type { IQueryForCodCollection } from "./codcollection.interface";
-import { ShipmentStatus } from "../../../generated/prisma/enums";
+import { Role, ShipmentStatus } from "../../../generated/prisma/enums";
 
 const recordCollection = async (
 	payload: IRecordCollectionPayload,
@@ -24,31 +24,11 @@ const recordCollection = async (
 		throw new AppError(httpStatus.NOT_FOUND, "Shipment Not Found");
 	}
 
+	
 	if (!shipment.codAmount) {
 		throw new AppError(
 			httpStatus.BAD_REQUEST,
 			"This Shipment Is Not Cash-On-Delivery",
-		);
-	}
-
-	if (shipment.codAmount === null) {
-		throw new AppError(
-			httpStatus.BAD_REQUEST,
-			"This Shipment Is Not Cash-On-Delivery",
-		);
-	}
-
-	if (shipment.status !== ShipmentStatus.OUT_FOR_DELIVERY) {
-		throw new AppError(
-			httpStatus.BAD_REQUEST,
-			"COD Can Only Be Collected For Shipments Out For Delivery",
-		);
-	}
-
-	if (payload.amountCollected <= 0) {
-		throw new AppError(
-			httpStatus.BAD_REQUEST,
-			"Collected Amount Must Be Greater Than Zero",
 		);
 	}
 
@@ -60,10 +40,19 @@ const recordCollection = async (
 		throw new AppError(httpStatus.FORBIDDEN, "Courier Man Profile Not Found");
 	}
 
+	
 	if (shipment.lastMileCourierManId !== courierMan.id) {
 		throw new AppError(
 			httpStatus.FORBIDDEN,
 			"You Are Not Assigned As The Last-Mile Courier For This Shipment",
+		);
+	}
+
+	
+	if (shipment.status !== ShipmentStatus.OUT_FOR_DELIVERY) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"COD can only be collected while the shipment is out for delivery",
 		);
 	}
 
@@ -74,23 +63,13 @@ const recordCollection = async (
 		);
 	}
 
-	if (
-		shipment.codAmount &&
-		payload.amountCollected !== shipment.codAmount.toNumber()
-	) {
-	}
-
-	const collection = await prisma.$transaction(async (tx) => {
-		const newCollection = await tx.codCollection.create({
-			data: {
-				shipmentId: payload.shipmentId,
-				amountCollected: payload.amountCollected,
-				collectedAt: new Date(),
-				collectedByCourierManId: courierMan.id,
-			},
-		});
-
-		return newCollection;
+	const collection = await prisma.codCollection.create({
+		data: {
+			shipmentId: payload.shipmentId,
+			amountCollected: payload.amountCollected,
+			collectedAt: new Date(),
+			collectedByCourierManId: courierMan.id,
+		},
 	});
 
 	return collection;
@@ -100,68 +79,74 @@ const confirmHubReceipt = async (
 	payload: IConfirmHubReceiptPayload,
 	user: RequestUser,
 ) => {
-	const existingCollection = await prisma.codCollection.findUnique({
-		where: { id: payload.codCollectionId },
-		include: {
-			shipment: { select: { originHubId: true, destinationHubId: true } },
-		},
-	});
+	const isAdmin = user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN;
 
-	if (!existingCollection) {
-		throw new AppError(httpStatus.NOT_FOUND, "COD Collection Record Not Found");
+	
+	let hubManager: { id: string; hubId: string | null; isDeleted: boolean } | null =
+		null;
+
+	if (!isAdmin) {
+		hubManager = await prisma.hubManager.findUnique({
+			where: { userId: user.userId },
+		});
+
+		if (!hubManager || hubManager.isDeleted || !hubManager.hubId) {
+			throw new AppError(httpStatus.FORBIDDEN, "Hub Manager Profile Not Found");
+		}
 	}
 
-	if (existingCollection.submittedToHubAt) {
+	const shipment = await prisma.shipment.findUnique({
+		where: { id: payload.shipmentId },
+		include: { codCollection: true },
+	});
+
+	if (!shipment) {
+		throw new AppError(httpStatus.NOT_FOUND, "Shipment Not Found");
+	}
+
+	
+	if (hubManager && shipment.destinationHubId !== hubManager.hubId) {
+		throw new AppError(
+			httpStatus.FORBIDDEN,
+			"Only the destination hub manager can confirm this cash",
+		);
+	}
+
+	if (!shipment.codAmount) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"This Shipment Is Not Cash-On-Delivery",
+		);
+	}
+
+	if (!shipment.codCollection) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"The courier has not recorded any collected cash for this shipment yet",
+		);
+	}
+
+	if (shipment.codCollection.submittedToHubAt) {
 		throw new AppError(
 			httpStatus.CONFLICT,
 			"This Collection Has Already Been Confirmed By A Hub",
 		);
 	}
 
-	const hubManager = await prisma.hubManager.findUnique({
-		where: { userId: user.userId },
-	});
-
-	if (!hubManager || hubManager.isDeleted) {
-		throw new AppError(httpStatus.FORBIDDEN, "Hub Manager Profile Not Found");
-	}
-
-	if (!hubManager.hubId) {
-		throw new AppError(httpStatus.FORBIDDEN, "You are not assigned to any hub");
-	}
-
-	const { originHubId, destinationHubId } = existingCollection.shipment;
-
-	if (
-		originHubId !== hubManager.hubId &&
-		destinationHubId !== hubManager.hubId
-	) {
-		throw new AppError(
-			httpStatus.FORBIDDEN,
-			"You can only confirm COD collections related to your hub",
-		);
-	}
-
-	const updatedCollection = await prisma.codCollection.update({
-		where: { id: payload.codCollectionId },
+	return prisma.codCollection.update({
+		where: { id: shipment.codCollection.id },
 		data: {
 			submittedToHubAt: new Date(),
-			receivedByHubManagerId: hubManager.id,
-			receivedAtHubId: hubManager.hubId,
+			
+			receivedByHubManagerId: hubManager ? hubManager.id : null,
 		},
 		include: {
 			shipment: { select: { id: true, trackingNumber: true } },
 			collectedByCourierMan: {
 				include: { user: { select: { id: true, name: true } } },
 			},
-
-			receivedByHubManager: {
-				include: { hub: true },
-			},
 		},
 	});
-
-	return updatedCollection;
 };
 
 const markRemitted = async (

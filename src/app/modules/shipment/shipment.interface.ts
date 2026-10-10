@@ -12,4 +12,5 @@ export interface IQueryForShipment {
 
 export interface IPayShipmentPayload {
 	shipmentId: string;
+	paymentMethod: string;
 }

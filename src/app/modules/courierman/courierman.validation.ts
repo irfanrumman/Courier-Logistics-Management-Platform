@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CourierManAssignType } from "../../../generated/prisma/enums";
+import { CourierManVerificationStatus } from "../../../generated/prisma/enums";
 
 export const applyAsCourierManZodSchema = z.object({
 	user: z.object({
@@ -9,10 +9,6 @@ export const applyAsCourierManZodSchema = z.object({
 		gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
 	}),
 	courierMan: z.object({
-		courierManAssignType: z.enum([
-			CourierManAssignType.HUB_TRANSFER,
-			CourierManAssignType.LAST_MILE,
-		]),
 		vehicleType: z.string().trim().optional(),
 		vehicleNumber: z.string().trim().optional(),
 		licenseNumber: z.string().trim().optional(),
@@ -31,7 +27,7 @@ export const courierManEmailVerifyZodSchema = z.object({
 export const approveCourierManZodSchema = z
 	.object({
 		courierManId: z.string().uuid("Invalid courier man ID"),
-		verificationStatus: z.enum(["APPROVED", "REJECTED"]),
+		verificationStatus: z.enum(CourierManVerificationStatus),
 		rejectionReason: z.string().trim().optional(),
 	})
 	.refine(
@@ -75,6 +71,8 @@ export const adminUpdateCourierManZodSchema = z.object({
 	zoneId: z.string().uuid("Invalid zone ID").optional(),
 	currentStatus: z.enum(["ACTIVE", "ON_LEAVE", "SUSPENDED"]).optional(),
 });
+
+
 
 export type IApplyAsCourierManPayload = z.infer<
 	typeof applyAsCourierManZodSchema

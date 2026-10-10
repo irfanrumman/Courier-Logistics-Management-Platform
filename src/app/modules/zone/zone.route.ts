@@ -16,7 +16,7 @@ router.post(
 
 router.get(
 	"/all-zones",
-	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
 	ZoneController.getAllZones,
 );
 

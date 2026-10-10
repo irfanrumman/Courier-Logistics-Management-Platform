@@ -11,8 +11,8 @@ const createShipment = catchAsync(async (req: Request, res: Response) => {
 	sendResponse(res, {
 		statusCode: httpStatus.CREATED,
 		success: true,
-		message: "Shipment created. Please complete payment to proceed.",
-		data: result, // { paymentUrl }
+		message:  "Shipment created. Use the shipment id to start payment.",
+		data: result, 
 	});
 });
 
@@ -147,16 +147,65 @@ const assignCourierMan = catchAsync(async (req: Request, res: Response) => {
 
 const shipmentAsDelivered = catchAsync(async (req: Request, res: Response) => {
 	const shipmentId = req.params.shipmentId as string;
-	const user = req.user!;
-	const result = await ShipmentServices.shipmentAsDelivered(shipmentId, user);
+	const result = await ShipmentServices.shipmentAsDelivered(shipmentId, req.user!);
 
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
-		message: "Courier Assigned Successfully",
+		message: "Shipment Marked As Delivered",
 		data: result,
 	});
 });
+
+
+const shipmentAsPickedUp = catchAsync(async (req: Request, res: Response) => {
+	const shipmentId = req.params.shipmentId as string;
+	const result = await ShipmentServices.shipmentAsPickedUp(
+		shipmentId,
+		req.user!,
+		req.body.note,
+	);
+
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: "Shipment Marked As Picked Up",
+		data: result,
+	});
+});
+
+
+
+const shipmentAsFailedDelivery = catchAsync(
+	async (req: Request, res: Response) => {
+		const shipmentId = req.params.shipmentId as string;
+		const result = await ShipmentServices.shipmentAsFailedDelivery(
+			shipmentId,
+			req.user!,
+			req.body.note,
+		);
+
+		sendResponse(res, {
+			statusCode: httpStatus.OK,
+			success: true,
+			message: "Shipment Marked As Failed Delivery",
+			data: result,
+		});
+	},
+);
+
+const getMyAssignedShipments = catchAsync(
+	async (req: Request, res: Response) => {
+		const result = await ShipmentServices.getMyAssignedShipments(req.user!);
+
+		sendResponse(res, {
+			statusCode: httpStatus.OK,
+			success: true,
+			message: "Assigned Shipments Retrieved Successfully",
+			data: result,
+		});
+	},
+);
 
 const addParcel = catchAsync(async (req: Request, res: Response) => {
 	const shipmentId = req.params.shipmentId as string;
@@ -228,6 +277,9 @@ export const ShipmentController = {
 	updateShipmentStatus,
 	assignCourierMan,
 	shipmentAsDelivered,
+	shipmentAsPickedUp,
+	shipmentAsFailedDelivery,
+	getMyAssignedShipments,
 	addParcel,
 	updateParcel,
 	deleteParcel,

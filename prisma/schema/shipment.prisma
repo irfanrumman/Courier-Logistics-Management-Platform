@@ -25,6 +25,9 @@ model Shipment {
   destinationHubId String
   destinationHub   Hub    @relation("ShipmentDestination", fields: [destinationHubId], references: [id], onDelete: Restrict)
 
+  pickupCourierManId String?
+  pickupCourierMan   CourierMan? @relation("ShipmentPickupCourierMan", fields: [pickupCourierManId], references: [id], onDelete: SetNull)
+
   transferCourierManId String?
   transferCourierMan   CourierMan? @relation("ShipmentTransferCourierMan", fields: [transferCourierManId], references: [id], onDelete: SetNull)
 

@@ -16,7 +16,6 @@ router.post(
 
 router.get(
 	"/all-hubs",
-	auth(Role.ADMIN, Role.SUPER_ADMIN),
 	HubController.getAllHubs,
 );
 

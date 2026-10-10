@@ -8,7 +8,7 @@ export const recordCollectionZodSchema = z.object({
 });
 
 export const confirmHubReceiptZodSchema = z.object({
-	codCollectionId: z.string().uuid("Invalid collection ID"),
+	shipmentId: z.string().uuid("Invalid collection ID"),
 });
 
 export const markRemittedZodSchema = z.object({

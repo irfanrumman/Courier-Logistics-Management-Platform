@@ -16,7 +16,7 @@ router.post(
 
 router.patch(
 	"/confirm-hub-receipt",
-	auth(Role.HUB_MANAGER),
+	auth(Role.HUB_MANAGER, Role.ADMIN, Role.SUPER_ADMIN),
 	validateRequest(codCollectionValidation.confirmHubReceiptZodSchema),
 	CodCollectionController.confirmHubReceipt,
 );

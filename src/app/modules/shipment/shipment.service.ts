@@ -3,6 +3,7 @@ import httpStatus from "http-status";
 import PDFDocument from "pdfkit";
 import config from "../../config";
 import { getBkashIdToken } from "../../lib/bkash";
+import { stripe } from "../../lib/stripe"; 
 import { transporter } from "../../lib/nodemailer";
 import { prisma } from "../../lib/prisma";
 import type { RequestUser } from "../../middleware/checkAuth";
@@ -177,6 +178,7 @@ const createShipment = async (
 		}
 	}
 
+	
 	const transactionResult = await prisma.$transaction(
 		async (tx) => {
 			const originHub = await tx.hub.findUnique({
@@ -225,7 +227,6 @@ const createShipment = async (
 			);
 
 			const trackingNumber = generateTrackingNumber();
-			const amount = deliveryCharge.toString();
 
 			const shipment = await tx.shipment.create({
 				data: {
@@ -276,66 +277,12 @@ const createShipment = async (
 				},
 			});
 
-			const bkashIdToken = await getBkashIdToken();
-
-			if (!bkashIdToken) {
-				throw new AppError(
-					httpStatus.BAD_GATEWAY,
-					"No Bkash Access Token Found!",
-				);
-			}
-
-			const bkashCreatePaymentResponse = await fetch(
-				`${config.bkash_base_url}/tokenized/checkout/create`,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Accept: "application/json",
-						Authorization: bkashIdToken,
-						"X-App-Key": config.bkash_app_key,
-					},
-					body: JSON.stringify({
-						mode: "0011",
-						payerReference: user.email,
-						callbackURL: `${config.bkash_callback_url}/shipment/create-shipment/payment/callback`,
-						amount,
-						currency: "BDT",
-						intent: "sale",
-						merchantInvoiceNumber: shipment.id,
-					}),
-				},
-			);
-
-			const bkashCreatePaymentResult = await bkashCreatePaymentResponse.json();
-
-			if (
-				!bkashCreatePaymentResult?.paymentID ||
-				!bkashCreatePaymentResult?.bkashURL
-			) {
-				throw new AppError(
-					httpStatus.BAD_GATEWAY,
-					`Failed to initiate bKash payment: ${bkashCreatePaymentResult?.statusMessage ?? "Unknown error"}`,
-				);
-			}
-
-			await tx.payment.create({
-				data: {
-					shipmentId: shipment.id,
-					amount: deliveryCharge,
-					method: PaymentMethod.BKASH,
-					paymentGateway: "bkash",
-					merchantInvoiceNumber: bkashCreatePaymentResult.merchantInvoiceNumber,
-					gatewayReferenceId: bkashCreatePaymentResult.paymentID,
-					gatewayResponse: bkashCreatePaymentResult,
-					payerReference: user.email,
-					status: "UNPAID",
-				},
-			});
-
-			return { paymentUrl: bkashCreatePaymentResult.bkashURL };
+			
+			return {
+				shipmentId: shipment.id,
+				trackingNumber: shipment.trackingNumber,
+			};
 		},
-
 		{ maxWait: 10000, timeout: 30000 },
 	);
 
@@ -365,14 +312,7 @@ const payShipment = async (payload: IPayShipmentPayload, user: RequestUser) => {
 		throw new AppError(httpStatus.BAD_REQUEST, "Shipment Is Not Pending!");
 	}
 
-	if (!existingShipment.payment) {
-		throw new AppError(
-			httpStatus.NOT_FOUND,
-			"No Existing Payment Record Found For This Shipment",
-		);
-	}
-
-	if (existingShipment.payment.status === "PAID") {
+	if (existingShipment.payment?.status === "PAID") {
 		throw new AppError(
 			httpStatus.CONFLICT,
 			"This Shipment Has Already Been Paid For",
@@ -380,60 +320,152 @@ const payShipment = async (payload: IPayShipmentPayload, user: RequestUser) => {
 	}
 
 	const amount = existingShipment.deliveryCharge.toString();
+	const oldPayment = existingShipment.payment;
 
-	const bkashIdToken = await getBkashIdToken();
+	let paymentUrl: string;
 
-	if (!bkashIdToken) {
-		throw new AppError(httpStatus.BAD_GATEWAY, "No Bkash Access Token Found!");
-	}
+	
+	// bKash branch
+	
+	if (payload.paymentMethod === PaymentMethod.BKASH) {
+		const bkashIdToken = await getBkashIdToken();
 
-	const bkashCreatePaymentResponse = await fetch(
-		`${config.bkash_base_url}/tokenized/checkout/create`,
-		{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Accept: "application/json",
-				Authorization: bkashIdToken,
-				"X-App-Key": config.bkash_app_key,
+		if (!bkashIdToken) {
+			throw new AppError(
+				httpStatus.BAD_GATEWAY,
+				"No Bkash Access Token Found!",
+			);
+		}
+
+		const bkashCreatePaymentResponse = await fetch(
+			`${config.bkash_base_url}/tokenized/checkout/create`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Accept: "application/json",
+					Authorization: bkashIdToken,
+					"X-App-Key": config.bkash_app_key,
+				},
+				body: JSON.stringify({
+					mode: "0011",
+					payerReference: user.email,
+					callbackURL: `${config.bkash_callback_url}/shipment/create-shipment/payment/callback`,
+					amount,
+					currency: "BDT",
+					intent: "sale",
+					merchantInvoiceNumber: existingShipment.id,
+				}),
 			},
-			body: JSON.stringify({
-				mode: "0011",
-				payerReference: user.email,
-				callbackURL: `${config.bkash_callback_url}/shipment/create-shipment/payment/callback`,
-				amount,
-				currency: "BDT",
-				intent: "sale",
-				merchantInvoiceNumber: existingShipment.id,
-			}),
-		},
-	);
-
-	const bkashCreatePaymentResult = await bkashCreatePaymentResponse.json();
-
-	if (
-		!bkashCreatePaymentResult?.paymentID ||
-		!bkashCreatePaymentResult?.bkashURL
-	) {
-		throw new AppError(
-			httpStatus.BAD_GATEWAY,
-			`Failed to initiate bKash payment: ${bkashCreatePaymentResult?.statusMessage ?? "Unknown error"}`,
 		);
+
+		const bkashCreatePaymentResult = await bkashCreatePaymentResponse.json();
+
+		if (
+			!bkashCreatePaymentResult?.paymentID ||
+			!bkashCreatePaymentResult?.bkashURL
+		) {
+			throw new AppError(
+				httpStatus.BAD_GATEWAY,
+				`Failed to initiate bKash payment: ${bkashCreatePaymentResult?.statusMessage ?? "Unknown error"}`,
+			);
+		}
+
+	
+		await prisma.payment.upsert({
+			where: { shipmentId: existingShipment.id },
+			create: {
+				shipmentId: existingShipment.id,
+				amount: existingShipment.deliveryCharge,
+				method: PaymentMethod.BKASH,
+				paymentGateway: "bkash",
+				merchantInvoiceNumber: bkashCreatePaymentResult.merchantInvoiceNumber,
+				gatewayReferenceId: bkashCreatePaymentResult.paymentID,
+				gatewayResponse: bkashCreatePaymentResult,
+				payerReference: user.email,
+				status: "UNPAID",
+			},
+			update: {
+				method: PaymentMethod.BKASH,
+				paymentGateway: "bkash",
+				merchantInvoiceNumber: bkashCreatePaymentResult.merchantInvoiceNumber,
+				gatewayReferenceId: bkashCreatePaymentResult.paymentID,
+				gatewayResponse: bkashCreatePaymentResult,
+				status: "UNPAID",
+				gatewayTransactionId: null,
+				paidAt: null,
+			},
+		});
+
+		paymentUrl = bkashCreatePaymentResult.bkashURL;
+	}
+	
+	// Stripe branch
+	
+	else {
+		const session = await stripe.checkout.sessions.create({
+			mode: "payment",
+			customer_email: user.email,
+			line_items: [
+				{
+					quantity: 1,
+					price_data: {
+						currency: "bdt",
+						unit_amount: Math.round(Number(amount) * 100),
+						product_data: {
+							name: `Delivery charge - ${existingShipment.trackingNumber}`,
+						},
+					},
+				},
+			],
+			metadata: { shipmentId: existingShipment.id },
+			success_url: `${config.frontend_url}/dashboard/my-shipments?status=success`,
+			cancel_url: `${config.frontend_url}/dashboard/my-shipments?status=cancel`,
+		});
+
+		if (!session.url) {
+			throw new AppError(
+				httpStatus.BAD_GATEWAY,
+				"Failed to create Stripe checkout session",
+			);
+		}
+
+		await prisma.payment.upsert({
+			where: { shipmentId: existingShipment.id },
+			create: {
+				shipmentId: existingShipment.id,
+				amount: existingShipment.deliveryCharge,
+				method: PaymentMethod.STRIPE,
+				paymentGateway: "stripe",
+				merchantInvoiceNumber: existingShipment.id,
+				gatewayReferenceId: session.id,
+				gatewayResponse: JSON.parse(JSON.stringify(session)),
+				payerReference: user.email,
+				status: "UNPAID",
+			},
+			update: {
+				method: PaymentMethod.STRIPE,
+				paymentGateway: "stripe",
+				gatewayReferenceId: session.id,
+				gatewayResponse: JSON.parse(JSON.stringify(session)),
+				status: "UNPAID",
+				gatewayTransactionId: null,
+				paidAt: null,
+			},
+		});
+
+		paymentUrl = session.url;
 	}
 
-	await prisma.payment.update({
-		where: { shipmentId: existingShipment.id },
-		data: {
-			merchantInvoiceNumber: bkashCreatePaymentResult.merchantInvoiceNumber,
-			gatewayReferenceId: bkashCreatePaymentResult.paymentID,
-			gatewayResponse: bkashCreatePaymentResult,
-		},
-	});
+	if (oldPayment?.paymentGateway === "stripe" && oldPayment.gatewayReferenceId) {
+		await stripe.checkout.sessions
+			.expire(oldPayment.gatewayReferenceId)
+			.catch(() => {});
+	}
 
-	return {
-		paymentUrl: bkashCreatePaymentResult.bkashURL,
-	};
+	return { paymentUrl };
 };
+
 
 const shipmentPaymentCallback = async (query: Record<string, any>) => {
 	const transactionResult = await prisma.$transaction(
@@ -528,7 +560,8 @@ const shipmentPaymentCallback = async (query: Record<string, any>) => {
 				});
 
 				await tx.payment.update({
-					where: { shipmentId: executedPaymentResult.merchantInvioceNumber },
+				
+					where: { shipmentId: executedPaymentResult.merchantInvoiceNumber },
 					data: {
 						status: PaymentStatus.PAID,
 						gatewayTransactionId: executedPaymentResult.trxID,
@@ -917,62 +950,105 @@ const cancelShipment = async (shipmentId: string, user: RequestUser) => {
 		const isEligibleForRefund = existingShipment.payment?.status === "PAID";
 
 		if (isEligibleForRefund && existingShipment.payment) {
-			const bkashIdToken = await getBkashIdToken();
+			
+			let refundTrxId: string;
+			let refundAmount: number | string;
+			let refundedAt: string;
 
-			if (!bkashIdToken) {
-				throw new AppError(
-					httpStatus.BAD_GATEWAY,
-					"No Bkash Access Token Found!",
-				);
-			}
+			// Stripe refund
+			
+			if (existingShipment.payment.paymentGateway === "stripe") {
+				if (!existingShipment.payment.gatewayTransactionId) {
+					throw new AppError(
+						httpStatus.BAD_REQUEST,
+						"No Stripe payment found to refund",
+					);
+				}
 
-			const bkashRefundPaymentResponse = await fetch(
-				`${config.bkash_base_url}/tokenized/checkout/payment/refund`,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Accept: "application/json",
-						Authorization: bkashIdToken,
-						"X-App-Key": config.bkash_app_key,
+				const stripeRefund = await stripe.refunds.create({
+					payment_intent: existingShipment.payment.gatewayTransactionId, 
+				});
+
+				refundTrxId = stripeRefund.id;
+				refundAmount = existingShipment.payment.amount.toNumber();
+				refundedAt = new Date().toISOString();
+
+				await tx.payment.update({
+					where: { shipmentId },
+					data: {
+						refundTransactionId: refundTrxId,
+						refundedAt: refundedAt,
+						refundAmount: refundAmount,
+						refundReason: "Sender Cancelled The Shipment",
+						status: PaymentStatus.REFUNDED,
 					},
-					body: JSON.stringify({
-						paymentID: existingShipment.payment.gatewayReferenceId,
-						trxID: existingShipment.payment.gatewayTransactionId,
-						amount: existingShipment.payment.amount.toString(),
-						sku: "Shipment Cancellation",
-						reason: "Sender Cancelled The Shipment",
-					}),
-				},
-			);
-
-			const bkashRefundPaymentResult = await bkashRefundPaymentResponse.json();
-
-			if (
-				!bkashRefundPaymentResponse.ok ||
-				bkashRefundPaymentResult.statusCode !== "0000"
-			) {
-				throw new AppError(
-					httpStatus.BAD_GATEWAY,
-					`Refund failed: ${bkashRefundPaymentResult.statusMessage || "Unknown error from bKash"}`,
-				);
+				});
 			}
 
-			await tx.payment.update({
-				where: { shipmentId },
-				data: {
-					refundTransactionId: bkashRefundPaymentResult.refundTrxID,
-					refundedAt: bkashRefundPaymentResult.completedTime,
-					refundAmount: bkashRefundPaymentResult.amount,
-					refundReason: "Sender Cancelled The Shipment",
-					status: PaymentStatus.REFUNDED,
-					gatewayResponse: bkashRefundPaymentResult,
-				},
-			});
+			// bKash refund
+			
+			else {
+				const bkashIdToken = await getBkashIdToken();
 
-			// ==============================
+				if (!bkashIdToken) {
+					throw new AppError(
+						httpStatus.BAD_GATEWAY,
+						"No Bkash Access Token Found!",
+					);
+				}
+
+				const bkashRefundPaymentResponse = await fetch(
+					`${config.bkash_base_url}/tokenized/checkout/payment/refund`,
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Accept: "application/json",
+							Authorization: bkashIdToken,
+							"X-App-Key": config.bkash_app_key,
+						},
+						body: JSON.stringify({
+							paymentID: existingShipment.payment.gatewayReferenceId,
+							trxID: existingShipment.payment.gatewayTransactionId,
+							amount: existingShipment.payment.amount.toString(),
+							sku: "Shipment Cancellation",
+							reason: "Sender Cancelled The Shipment",
+						}),
+					},
+				);
+
+				const bkashRefundPaymentResult =
+					await bkashRefundPaymentResponse.json();
+
+				if (
+					!bkashRefundPaymentResponse.ok ||
+					bkashRefundPaymentResult.statusCode !== "0000"
+				) {
+					throw new AppError(
+						httpStatus.BAD_GATEWAY,
+						`Refund failed: ${bkashRefundPaymentResult.statusMessage || "Unknown error from bKash"}`,
+					);
+				}
+
+				refundTrxId = bkashRefundPaymentResult.refundTrxID;
+				refundAmount = bkashRefundPaymentResult.amount;
+				refundedAt = bkashRefundPaymentResult.completedTime;
+
+				await tx.payment.update({
+					where: { shipmentId },
+					data: {
+						refundTransactionId: bkashRefundPaymentResult.refundTrxID,
+						refundedAt: bkashRefundPaymentResult.completedTime,
+						refundAmount: bkashRefundPaymentResult.amount,
+						refundReason: "Sender Cancelled The Shipment",
+						status: PaymentStatus.REFUNDED,
+						gatewayResponse: bkashRefundPaymentResult,
+					},
+				});
+			}
+
 			//      REFUND INVOICE PDF
-			// ==============================
+		
 			const pdfDocument = new PDFDocument({ margin: 50, size: "A4" });
 
 			const pdfChunks: Buffer[] = [];
@@ -1091,12 +1167,10 @@ const cancelShipment = async (shipmentId: string, user: RequestUser) => {
 				.fontSize(18)
 				.font("Helvetica-Bold")
 				.fillColor("#111111")
-				.text(
-					`৳ ${Number(bkashRefundPaymentResult.amount).toFixed(2)}`,
-					400,
-					paymentY - 4,
-					{ width: 145, align: "right" },
-				);
+				.text(`৳ ${Number(refundAmount).toFixed(2)}`, 400, paymentY - 4, {
+					width: 145,
+					align: "right",
+				});
 
 			pdfDocument.moveDown(2);
 
@@ -1104,11 +1178,9 @@ const cancelShipment = async (shipmentId: string, user: RequestUser) => {
 				.fontSize(10)
 				.font("Helvetica")
 				.fillColor("#555555")
-				.text(`Refund Transaction ID: ${bkashRefundPaymentResult.refundTrxID}`);
+				.text(`Refund Transaction ID: ${refundTrxId}`);
 
-			pdfDocument.text(
-				`Refunded At: ${bkashRefundPaymentResult.completedTime}`,
-			);
+			pdfDocument.text(`Refunded At: ${refundedAt}`);
 
 			pdfDocument.moveDown(1.5);
 
@@ -1264,6 +1336,7 @@ const getSingleShipmentById = async (shipmentId: string, user: RequestUser) => {
 			statusHistory: { orderBy: { createdAt: "asc" } },
 			originHub: true,
 			destinationHub: true,
+			pickupCourierMan: { include: { user: { omit: { password: true } } } },
 			transferCourierMan: { include: { user: { omit: { password: true } } } },
 			lastMileCourierMan: { include: { user: { omit: { password: true } } } },
 			payment: true,
@@ -1381,36 +1454,7 @@ const updateShipmentStatus = async (
 	if (updater.role === Role.HUB_MANAGER) {
 		hubManagerHubId = await getActiveHubManagerHubId(updater.userId);
 	}
-	//   if (updater.role === Role.HUB_MANAGER) {
-	//     const dbUser = await prisma.user.findUnique({
-	//       where: { id: updater.userId },
-	//       include: { hubManager: true },
-	//     });
 
-	//   if (
-	//      !dbUser ||
-	//      dbUser.isDeleted ||
-	//      dbUser.status !== UserStatus.ACTIVE ||
-	//     !dbUser.hubManager ||
-	//      dbUser.hubManager.isDeleted ||
-	//     dbUser.hubManager.status !== HubManagerStatus.ACTIVE ||
-	//     dbUser.hubManager.verificationStatus !== HubManagerVerificationStatus.APPROVED
-	//    ) {
-	//       const reason =
-	//       !dbUser || dbUser.isDeleted || dbUser.status !== UserStatus.ACTIVE
-	//       ? "inactive or deleted"
-	//       : !dbUser.hubManager || dbUser.hubManager.isDeleted
-	//         ? "missing or deleted"
-	//         : dbUser.hubManager.verificationStatus !== HubManagerVerificationStatus.APPROVED
-	// ? "not verified"
-	//           : dbUser.hubManager.status;
-
-	//      throw new AppError(
-	//     httpStatus.FORBIDDEN,
-	//     `Your hub manager account is ${reason}. You cannot update shipment status.`,
-	//     );
-	//   }
-	// }
 	const existingShipment = await prisma.shipment.findUnique({
 		where: { id: shipmentId },
 		include: { codCollection: true },
@@ -1422,11 +1466,39 @@ const updateShipmentStatus = async (
 
 	if (hubManagerHubId) {
 		assertShipmentBelongsToHub(existingShipment, hubManagerHubId);
+
+		const ORIGIN_ONLY: ShipmentStatus[] = [
+			ShipmentStatus.AT_ORIGIN_HUB,
+			ShipmentStatus.IN_TRANSIT,
+		];
+		const DESTINATION_ONLY: ShipmentStatus[] = [
+			ShipmentStatus.AT_DESTINATION_HUB,
+		];
+
+		if (
+			ORIGIN_ONLY.includes(payload.status) &&
+			hubManagerHubId !== existingShipment.originHubId
+		) {
+			throw new AppError(
+				httpStatus.FORBIDDEN,
+				"Only the origin hub manager can set this status",
+			);
+		}
+
+		if (
+			DESTINATION_ONLY.includes(payload.status) &&
+			hubManagerHubId !== existingShipment.destinationHubId
+		) {
+			throw new AppError(
+				httpStatus.FORBIDDEN,
+				"Only the destination hub manager can set this status",
+			);
+		}
 	}
 
+	
 	const FINAL_STATUSES: ShipmentStatus[] = [
 		ShipmentStatus.DELIVERED,
-		ShipmentStatus.FAILED_DELIVERY,
 		ShipmentStatus.RETURNED,
 		ShipmentStatus.CANCELLED,
 	];
@@ -1438,28 +1510,18 @@ const updateShipmentStatus = async (
 		);
 	}
 
+	
 	if (
 		payload.status === ShipmentStatus.DELIVERED &&
 		existingShipment.codAmount != null
 	) {
-		if (!existingShipment.codCollection) {
+		if (!existingShipment.codCollection?.submittedToHubAt) {
 			throw new AppError(
 				httpStatus.BAD_REQUEST,
-				"Cash has not been recorded as collected from the receiver yet",
-			);
-		}
-
-		if (!existingShipment.codCollection.submittedToHubAt) {
-			throw new AppError(
-				httpStatus.BAD_REQUEST,
-				"Collected cash must be submitted to and confirmed by the hub before marking as delivered",
+				"COD cash must be submitted to and confirmed by the hub before marking as delivered",
 			);
 		}
 	}
-
-	const isNewStatusTerminal = FINAL_STATUSES.includes(payload.status);
-
-	const shouldFreeCouriers = isNewStatusTerminal;
 
 	const updatedShipment = await prisma.$transaction(async (tx) => {
 		const shipment = await tx.shipment.update({
@@ -1489,20 +1551,6 @@ const updateShipmentStatus = async (
 				updatedById: updater.userId,
 			},
 		});
-
-		if (shouldFreeCouriers) {
-			const courierIdsToFree = [
-				existingShipment.transferCourierManId,
-				existingShipment.lastMileCourierManId,
-			].filter((id): id is string => id !== null);
-
-			if (courierIdsToFree.length > 0) {
-				await tx.courierMan.updateMany({
-					where: { id: { in: courierIdsToFree } },
-					data: { isAvailable: true },
-				});
-			}
-		}
 
 		return shipment;
 	});
@@ -1547,6 +1595,7 @@ const assignCourierMan = async (
 		throw new AppError(httpStatus.GONE, "This Courier Man Has Been Deleted");
 	}
 
+	
 	if (!courierMan.isAvailable) {
 		throw new AppError(
 			httpStatus.CONFLICT,
@@ -1561,20 +1610,6 @@ const assignCourierMan = async (
 		);
 	}
 
-	const ASSIGNABLE_STATUSES: ShipmentStatus[] = [
-		"PICKUP_REQUESTED",
-		"AT_ORIGIN_HUB",
-		"IN_TRANSIT",
-		"AT_DESTINATION_HUB",
-	];
-
-	if (!ASSIGNABLE_STATUSES.includes(existingShipment.status)) {
-		throw new AppError(
-			httpStatus.BAD_REQUEST,
-			`Cannot assign courier when shipment is in ${existingShipment.status} status`,
-		);
-	}
-
 	if (courierMan.currentStatus !== CourierManCurrentStatus.ACTIVE) {
 		throw new AppError(
 			httpStatus.BAD_REQUEST,
@@ -1582,41 +1617,59 @@ const assignCourierMan = async (
 		);
 	}
 
+	const ASSIGNABLE_BY_TYPE: Record<CourierManAssignType, ShipmentStatus[]> = {
+		PICKUP_TO_HUB: [ShipmentStatus.PICKUP_REQUESTED],
+		HUB_TRANSFER: [ShipmentStatus.AT_ORIGIN_HUB],
+		DELIVERY_TO_RECEIVER: [
+			ShipmentStatus.AT_DESTINATION_HUB,
+			ShipmentStatus.FAILED_DELIVERY, 
+		],
+	};
+
 	if (
-		payload.assignmentType === CourierManAssignType.HUB_TRANSFER &&
-		courierMan.courierManAssignType !== CourierManAssignType.HUB_TRANSFER
+		!ASSIGNABLE_BY_TYPE[payload.assignmentType].includes(existingShipment.status)
 	) {
 		throw new AppError(
 			httpStatus.BAD_REQUEST,
-			"Only HUB_TRANSFER type courier men can be assigned for transfer",
+			`Cannot assign ${payload.assignmentType} courier when shipment is in ${existingShipment.status} status`,
 		);
 	}
 
-	if (
-		payload.assignmentType === CourierManAssignType.LAST_MILE &&
-		courierMan.courierManAssignType !== CourierManAssignType.LAST_MILE
-	) {
+	
+	const expectedHubId =
+		payload.assignmentType === CourierManAssignType.DELIVERY_TO_RECEIVER
+			? existingShipment.destinationHubId
+			: existingShipment.originHubId;
+
+	
+	if (courierMan.currentHubId && courierMan.currentHubId !== expectedHubId) {
 		throw new AppError(
 			httpStatus.BAD_REQUEST,
-			"Only LAST_MILE type courier men can be assigned for last-mile delivery",
+			"This courier belongs to a different hub",
 		);
 	}
 
+	
 	const updateData =
-		payload.assignmentType === CourierManAssignType.HUB_TRANSFER
-			? { transferCourierManId: payload.courierManId }
-			: { lastMileCourierManId: payload.courierManId };
+		payload.assignmentType === CourierManAssignType.PICKUP_TO_HUB
+			? { pickupCourierManId: payload.courierManId }
+			: payload.assignmentType === CourierManAssignType.HUB_TRANSFER
+				? { transferCourierManId: payload.courierManId }
+				: { lastMileCourierManId: payload.courierManId };
 
 	const newStatus: ShipmentStatus =
-		payload.assignmentType === CourierManAssignType.HUB_TRANSFER
+		payload.assignmentType === CourierManAssignType.PICKUP_TO_HUB
 			? ShipmentStatus.COURIER_ASSIGNED
-			: ShipmentStatus.OUT_FOR_DELIVERY;
+			: payload.assignmentType === CourierManAssignType.DELIVERY_TO_RECEIVER
+				? ShipmentStatus.OUT_FOR_DELIVERY
+				: existingShipment.status;
 
 	const updatedShipment = await prisma.$transaction(async (tx) => {
 		const shipment = await tx.shipment.update({
 			where: { id: shipmentId },
 			data: { ...updateData, status: newStatus },
 			include: {
+				pickupCourierMan: { include: { user: { omit: { password: true } } } },
 				transferCourierMan: { include: { user: { omit: { password: true } } } },
 				lastMileCourierMan: { include: { user: { omit: { password: true } } } },
 			},
@@ -1631,11 +1684,6 @@ const assignCourierMan = async (
 			},
 		});
 
-		await tx.courierMan.update({
-			where: { id: payload.courierManId },
-			data: { isAvailable: false },
-		});
-
 		return shipment;
 	});
 
@@ -1643,7 +1691,6 @@ const assignCourierMan = async (
 };
 
 const shipmentAsDelivered = async (shipmentId: string, user: RequestUser) => {
-	// 1. Find courier profile
 	const courierMan = await prisma.courierMan.findUnique({
 		where: { userId: user.userId },
 	});
@@ -1652,20 +1699,16 @@ const shipmentAsDelivered = async (shipmentId: string, user: RequestUser) => {
 		throw new AppError(httpStatus.FORBIDDEN, "Courier Man Profile Not Found");
 	}
 
-	// 2. Find shipment
 	const shipment = await prisma.shipment.findUnique({
 		where: { id: shipmentId },
-		include: {
-			codCollection: true,
-		},
+		include: { codCollection: true },
 	});
 
 	if (!shipment) {
 		throw new AppError(httpStatus.NOT_FOUND, "Shipment Not Found");
 	}
 
-	// 3. Check whether this courier is assigned
-	// as the last-mile courier
+	
 	if (shipment.lastMileCourierManId !== courierMan.id) {
 		throw new AppError(
 			httpStatus.FORBIDDEN,
@@ -1673,7 +1716,6 @@ const shipmentAsDelivered = async (shipmentId: string, user: RequestUser) => {
 		);
 	}
 
-	// 4. Shipment must be out for delivery
 	if (shipment.status !== ShipmentStatus.OUT_FOR_DELIVERY) {
 		throw new AppError(
 			httpStatus.BAD_REQUEST,
@@ -1681,17 +1723,17 @@ const shipmentAsDelivered = async (shipmentId: string, user: RequestUser) => {
 		);
 	}
 
-	// 5. If this is a COD shipment,
-	// collection must be recorded before delivery
-	if (shipment.codAmount !== null && !shipment.codCollection) {
+	
+	if (
+		shipment.codAmount !== null &&
+		!shipment.codCollection?.submittedToHubAt
+	) {
 		throw new AppError(
 			httpStatus.BAD_REQUEST,
-			"COD Collection Must Be Recorded Before Delivery",
+			"COD cash must be submitted to and confirmed by the hub before marking as delivered",
 		);
 	}
 
-	// 6. Update shipment, create history,
-	// and make courier available again
 	const result = await prisma.$transaction(async (tx) => {
 		const updatedShipment = await tx.shipment.update({
 			where: { id: shipmentId },
@@ -1701,7 +1743,6 @@ const shipmentAsDelivered = async (shipmentId: string, user: RequestUser) => {
 			},
 		});
 
-		// Create status history
 		await tx.shipmentStatusHistory.create({
 			data: {
 				shipmentId,
@@ -1711,19 +1752,171 @@ const shipmentAsDelivered = async (shipmentId: string, user: RequestUser) => {
 			},
 		});
 
-		// Courier is now available for another shipment
-		await tx.courierMan.update({
-			where: { id: courierMan.id },
-			data: {
-				isAvailable: true,
-			},
-		});
-
 		return updatedShipment;
 	});
 
 	return result;
 };
+
+
+
+
+const shipmentAsPickedUp = async (
+	shipmentId: string,
+	user: RequestUser,
+	note?: string,
+) => {
+	const courierMan = await prisma.courierMan.findUnique({
+		where: { userId: user.userId },
+	});
+
+	if (!courierMan) {
+		throw new AppError(httpStatus.FORBIDDEN, "Courier Man Profile Not Found");
+	}
+
+	const shipment = await prisma.shipment.findUnique({
+		where: { id: shipmentId },
+	});
+
+	if (!shipment) {
+		throw new AppError(httpStatus.NOT_FOUND, "Shipment Not Found");
+	}
+
+	
+	if (shipment.pickupCourierManId !== courierMan.id) {
+		throw new AppError(
+			httpStatus.FORBIDDEN,
+			"You Are Not Assigned To Pick Up This Shipment",
+		);
+	}
+
+	if (shipment.status !== ShipmentStatus.COURIER_ASSIGNED) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Only shipments with an assigned courier can be marked as picked up",
+		);
+	}
+
+	return prisma.$transaction(async (tx) => {
+		const updatedShipment = await tx.shipment.update({
+			where: { id: shipmentId },
+			data: { status: ShipmentStatus.PICKED_UP },
+		});
+
+		await tx.shipmentStatusHistory.create({
+			data: {
+				shipmentId,
+				status: ShipmentStatus.PICKED_UP,
+				note: note ?? "Parcel picked up from sender",
+				updatedById: user.userId,
+			},
+		});
+
+		return updatedShipment;
+	});
+};
+
+const shipmentAsFailedDelivery = async (
+	shipmentId: string,
+	user: RequestUser,
+	note: string,
+) => {
+	const courierMan = await prisma.courierMan.findUnique({
+		where: { userId: user.userId },
+	});
+
+	if (!courierMan) {
+		throw new AppError(httpStatus.FORBIDDEN, "Courier Man Profile Not Found");
+	}
+
+	const shipment = await prisma.shipment.findUnique({
+		where: { id: shipmentId },
+	});
+
+	if (!shipment) {
+		throw new AppError(httpStatus.NOT_FOUND, "Shipment Not Found");
+	}
+
+	if (shipment.lastMileCourierManId !== courierMan.id) {
+		throw new AppError(
+			httpStatus.FORBIDDEN,
+			"You Are Not Assigned To This Shipment",
+		);
+	}
+
+	if (shipment.status !== ShipmentStatus.OUT_FOR_DELIVERY) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Only shipments out for delivery can be marked as failed",
+		);
+	}
+
+	return prisma.$transaction(async (tx) => {
+		const updatedShipment = await tx.shipment.update({
+			where: { id: shipmentId },
+			data: {
+				status: ShipmentStatus.FAILED_DELIVERY,
+				failureReason: note,
+				deliveryAttemptCount: { increment: 1 },
+			},
+		});
+
+		await tx.shipmentStatusHistory.create({
+			data: {
+				shipmentId,
+				status: ShipmentStatus.FAILED_DELIVERY,
+				note,
+				updatedById: user.userId,
+			},
+		});
+
+		return updatedShipment;
+	});
+};
+
+
+const getMyAssignedShipments = async (user: RequestUser) => {
+	const courierMan = await prisma.courierMan.findUnique({
+		where: { userId: user.userId },
+	});
+
+	if (!courierMan) {
+		throw new AppError(httpStatus.FORBIDDEN, "Courier Man Profile Not Found");
+	}
+
+	return prisma.shipment.findMany({
+		where: {
+			OR: [
+				{
+					
+					pickupCourierManId: courierMan.id,
+					status: {
+						in: [ShipmentStatus.COURIER_ASSIGNED, ShipmentStatus.PICKED_UP],
+					},
+				},
+				{
+					
+					transferCourierManId: courierMan.id,
+					status: ShipmentStatus.IN_TRANSIT,
+				},
+				{
+					
+					lastMileCourierManId: courierMan.id,
+					status: ShipmentStatus.OUT_FOR_DELIVERY,
+				},
+			],
+		},
+		orderBy: { updatedAt: "desc" },
+		include: {
+			parcels: true,
+			originHub: true,
+			destinationHub: true,
+			codCollection: true,
+		},
+	});
+};
+
+
 
 //  Parcel add/update/delete — in PENDING status
 
@@ -1947,6 +2140,8 @@ const deleteParcel = async (
 	return { message: "Parcel deleted successfully" };
 };
 
+
+
 export const ShipmentServices = {
 	createShipment,
 	payShipment,
@@ -1959,6 +2154,9 @@ export const ShipmentServices = {
 	updateShipmentStatus,
 	assignCourierMan,
 	shipmentAsDelivered,
+	shipmentAsPickedUp,
+	shipmentAsFailedDelivery,
+	getMyAssignedShipments,
 	addParcel,
 	updateParcel,
 	deleteParcel,

@@ -9,6 +9,9 @@ import { parseFormDataJson } from "../../middleware/parseFormDataJson";
 
 const router = Router();
 
+
+// Customer / Merchant
+
 router.post(
 	"/create-shipment",
 	auth(Role.CUSTOMER, Role.MERCHANT),
@@ -24,11 +27,6 @@ router.post(
 );
 
 router.get(
-	"/create-shipment/payment/callback",
-	ShipmentController.shipmentPaymentCallback,
-);
-
-router.get(
 	"/my-shipments",
 	auth(Role.CUSTOMER, Role.MERCHANT),
 	ShipmentController.getMyShipments,
@@ -40,24 +38,23 @@ router.patch(
 	ShipmentController.cancelShipment,
 );
 
+
+//  Public 
+
+
+router.get(
+	"/create-shipment/payment/callback",
+	ShipmentController.shipmentPaymentCallback,
+);
+
 router.get(
 	"/track/:trackingNumber",
 	ShipmentController.getShipmentByTrackingNumber,
 );
 
-router.get(
-	"/single-shipment/:shipmentId",
-	auth(
-		Role.CUSTOMER,
-		Role.MERCHANT,
-		Role.ADMIN,
-		Role.SUPER_ADMIN,
-		Role.HUB_MANAGER,
-	),
-	ShipmentController.getSingleShipmentById,
-);
 
-// Admin/Hub Manager — internal management
+// Admin / Hub Manager
+
 router.get(
 	"/all-shipments",
 	auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
@@ -77,6 +74,53 @@ router.patch(
 	validateRequest(shipmentValidation.assignCourierZodSchema),
 	ShipmentController.assignCourierMan,
 );
+
+
+// Customer / Merchant / Admin / Hub Manager 
+
+router.get(
+	"/single-shipment/:shipmentId",
+	auth(
+		Role.CUSTOMER,
+		Role.MERCHANT,
+		Role.ADMIN,
+		Role.SUPER_ADMIN,
+		Role.HUB_MANAGER,
+	),
+	ShipmentController.getSingleShipmentById,
+);
+
+
+// Courier man
+
+router.get(
+	"/my-assigned-shipments",
+	auth(Role.COURIER_MAN),
+	ShipmentController.getMyAssignedShipments,
+);
+
+router.patch(
+	"/:shipmentId/picked-up",
+	auth(Role.COURIER_MAN),
+	validateRequest(shipmentValidation.courierShipmentActionZodSchema),
+	ShipmentController.shipmentAsPickedUp,
+);
+
+router.patch(
+	"/:shipmentId/delivered",
+	auth(Role.COURIER_MAN),
+	ShipmentController.shipmentAsDelivered,
+);
+
+router.patch(
+	"/:shipmentId/failed-delivery",
+	auth(Role.COURIER_MAN),
+	validateRequest(shipmentValidation.courierFailDeliveryZodSchema),
+	ShipmentController.shipmentAsFailedDelivery,
+);
+
+
+// Parcel (Customer / Merchant)
 
 router.post(
 	"/:shipmentId/parcels",

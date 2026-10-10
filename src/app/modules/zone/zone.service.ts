@@ -127,11 +127,11 @@ const deleteZone = async (zoneId: string) => {
 		);
 	}
 
-	const deletedZone = await prisma.zone.delete({
+	 await prisma.zone.delete({
 		where: { id: zoneId },
 	});
 
-	return deletedZone;
+	return null;
 };
 
 export const ZoneServices = {

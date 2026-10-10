@@ -30,6 +30,147 @@ import type {
 import type { HubManagerWhereInput } from "../../../generated/prisma/models";
 import { generateEmployeeId } from "../../utils/generateEmployeeId";
 
+// const applyAsHubManager = async (
+// 	payload: IApplyAsHubManagerPayload,
+// 	resume: Express.Multer.File | null,
+// 	additionalFiles: Express.Multer.File[],
+// ) => {
+// 	const isUserExists = await prisma.user.findUnique({
+// 		where: { email: payload.user.email },
+// 	});
+
+// 	if (isUserExists) {
+// 		throw new AppError(
+// 			httpStatus.CONFLICT,
+// 			"User already exists with this email",
+// 		);
+// 	}
+
+// 	if (!resume) {
+// 		throw new AppError(httpStatus.BAD_REQUEST, "Resume file is required");
+// 	}
+
+// 	const resumeUploadResult = await new Promise<UploadApiResponse>(
+// 		(resolve, reject) => {
+// 			cloudinary.uploader
+// 				.upload_stream(
+// 					{
+// 						resource_type: "auto",
+// 					},
+
+// 					async (error, result) => {
+// 						if (error) {
+// 							return reject(error);
+// 						}
+
+// 						if (!result) {
+// 							return reject(
+// 								new AppError(
+// 									httpStatus.INTERNAL_SERVER_ERROR,
+// 									"No result returned from Cloudinary",
+// 								),
+// 							);
+// 						}
+
+// 						resolve(result);
+// 					},
+// 				)
+// 				.end(resume.buffer);
+// 		},
+// 	);
+
+// 	const additionalFilesUploadResults = await Promise.all(
+// 		additionalFiles.map((file) => {
+// 			return new Promise<UploadApiResponse>((resolve, reject) => {
+// 				cloudinary.uploader
+// 					.upload_stream(
+// 						{
+// 							resource_type: "auto",
+// 						},
+
+// 						async (error, result) => {
+// 							if (error) {
+// 								return reject(error);
+// 							}
+
+// 							if (!result) {
+// 								return reject(new Error("No result returned from Cloudinary"));
+// 							}
+
+// 							resolve(result);
+// 						},
+// 					)
+// 					.end(file.buffer);
+// 			});
+// 		}),
+// 	);
+
+// 	const hubManagerApplication = await prisma.user.create({
+// 		data: {
+// 			name: payload.user.name,
+// 			email: payload.user.email,
+// 			phone: payload.user.phone,
+// 			gender: payload.user.gender,
+// 			role: Role.HUB_MANAGER,
+// 			hubManager: {
+// 				create: {
+// 					bio: payload.hubManager.bio,
+// 					qualifications: payload.hubManager.qualifications,
+// 					experienceYears: payload.hubManager.experienceYears,
+// 					resumeUrl: resumeUploadResult.secure_url,
+// 					resumePublicId: resumeUploadResult.public_id,
+// 					additionalFiles: additionalFilesUploadResults.map((file) => ({
+// 						url: file.secure_url,
+// 						publicId: file.public_id,
+// 					})),
+// 				},
+// 			},
+// 		},
+
+// 		include: {
+// 			hubManager: true,
+// 		},
+// 	});
+
+// 	const expirationSeconds = 60 * 60;
+
+// 	const otpKey = `hubManager-application-otp:${payload.user.email}`;
+// 	const otpValue = crypto.randomInt(100000, 1000000).toString();
+
+// 	await redisClient.set(otpKey, otpValue, {
+// 		expiration: {
+// 			type: "EX",
+// 			value: expirationSeconds,
+// 		},
+// 	});
+
+// 	const tempatePath = path.join(
+// 		process.cwd(),
+// 		"src/app/templates/otp-for-one-hour.ejs",
+// 	);
+
+// 	const templateData = {
+// 		name: payload.user.name,
+// 		email: payload.user.email,
+// 		otp: otpValue,
+// 		expirationMinutes: expirationSeconds / 60,
+// 	};
+
+// 	const html = await ejs.renderFile(tempatePath, templateData);
+
+// 	await transporter.sendMail({
+// 		from: {
+// 			name: "Courier & Logistics Management",
+// 			address: config.email_sender,
+// 		},
+// 		to: payload.user.email,
+// 		subject: "Hub Manager Application - Email Verification",
+// 		html,
+// 	});
+
+// 	return hubManagerApplication;
+// };
+
 const applyAsHubManager = async (
 	payload: IApplyAsHubManagerPayload,
 	resume: Express.Multer.File | null,
@@ -105,71 +246,116 @@ const applyAsHubManager = async (
 		}),
 	);
 
-	const hubManagerApplication = await prisma.user.create({
-		data: {
-			name: payload.user.name,
-			email: payload.user.email,
-			phone: payload.user.phone,
-			gender: payload.user.gender,
-			role: Role.HUB_MANAGER,
-			hubManager: {
-				create: {
-					bio: payload.hubManager.bio,
-					qualifications: payload.hubManager.qualifications,
-					experienceYears: payload.hubManager.experienceYears,
-					resumeUrl: resumeUploadResult.secure_url,
-					resumePublicId: resumeUploadResult.public_id,
-					additionalFiles: additionalFilesUploadResults.map((file) => ({
-						url: file.secure_url,
-						publicId: file.public_id,
-					})),
+
+	const uploadedPublicIds = [
+		resumeUploadResult.public_id,
+		...additionalFilesUploadResults.map((file) => file.public_id),
+	];
+
+	
+	const cleanupUploadedFiles = async () => {
+		for (const resourceType of ["image", "raw"] as const) {
+			await cloudinary.api
+				.delete_resources(uploadedPublicIds, { resource_type: resourceType })
+				.catch(() => {});
+		}
+	};
+
+		const hubManagerApplication = await prisma.user
+		.create({
+			data: {
+				name: payload.user.name,
+				email: payload.user.email,
+				phone: payload.user.phone,
+				gender: payload.user.gender,
+				role: Role.HUB_MANAGER,
+				hubManager: {
+					create: {
+						bio: payload.hubManager.bio,
+						qualifications: payload.hubManager.qualifications,
+						experienceYears: payload.hubManager.experienceYears,
+						resumeUrl: resumeUploadResult.secure_url,
+						resumePublicId: resumeUploadResult.public_id,
+						additionalFiles: additionalFilesUploadResults.map((file) => ({
+							url: file.secure_url,
+							publicId: file.public_id,
+						})),
+					},
 				},
 			},
-		},
 
-		include: {
-			hubManager: true,
-		},
-	});
+			include: {
+				hubManager: true,
+			},
+		})
+		.catch(async (error) => {
+		
+			await cleanupUploadedFiles();
+
+			
+			if ((error as { code?: string })?.code === "P2002") {
+				throw new AppError(
+					httpStatus.CONFLICT,
+					"User already exists with this email",
+				);
+			}
+
+			throw error;
+		});
 
 	const expirationSeconds = 60 * 60;
 
 	const otpKey = `hubManager-application-otp:${payload.user.email}`;
 	const otpValue = crypto.randomInt(100000, 1000000).toString();
 
-	await redisClient.set(otpKey, otpValue, {
-		expiration: {
-			type: "EX",
-			value: expirationSeconds,
-		},
-	});
+	try {
+		await redisClient.set(otpKey, otpValue, {
+			expiration: {
+				type: "EX",
+				value: expirationSeconds,
+			},
+		});
 
-	const tempatePath = path.join(
-		process.cwd(),
-		"src/app/templates/otp-for-one-hour.ejs",
-	);
+		const tempatePath = path.join(
+			process.cwd(),
+			"src/app/templates/otp-for-one-hour.ejs",
+		);
 
-	const templateData = {
-		name: payload.user.name,
-		email: payload.user.email,
-		otp: otpValue,
-		expirationMinutes: expirationSeconds / 60,
-	};
+		const templateData = {
+			name: payload.user.name,
+			email: payload.user.email,
+			otp: otpValue,
+			expirationMinutes: expirationSeconds / 60,
+		};
 
-	const html = await ejs.renderFile(tempatePath, templateData);
+		const html = await ejs.renderFile(tempatePath, templateData);
 
-	await transporter.sendMail({
-		from: {
-			name: "Courier & Logistics Management",
-			address: config.email_sender,
-		},
-		to: payload.user.email,
-		subject: "Hub Manager Application - Email Verification",
-		html,
-	});
+		await transporter.sendMail({
+			from: {
+				name: "Courier & Logistics Management",
+				address: config.email_sender,
+			},
+			to: payload.user.email,
+			subject: "Hub Manager Application - Email Verification",
+			html,
+		});
+	} catch (error) {
+		console.error("Error sending verification email:", error);
+		await prisma.user
+			.delete({ where: { id: hubManagerApplication.id } })
+			.catch(() => {});
+		await redisClient.del(otpKey).catch(() => {});
+		await cleanupUploadedFiles();
+
+		throw new AppError(
+			httpStatus.BAD_GATEWAY,
+			"Could not send the verification email. Please try again.",
+		);
+	}
 
 	return hubManagerApplication;
 };
+
 
 const verifyHubManagerEmail = async (
 	payload: IHubManagerEmailVerifyPayload,

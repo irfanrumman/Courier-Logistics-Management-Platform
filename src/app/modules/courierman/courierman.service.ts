@@ -1,19 +1,20 @@
 import bcrypt from "bcryptjs";
-import type { UploadApiResponse } from "cloudinary";
+// import type { UploadApiResponse } from "cloudinary";
 import crypto from "crypto";
 import ejs from "ejs";
 import httpStatus from "http-status";
 import path from "path";
 import config from "../../config";
-import { IQuery, type IQueryForCourier } from "../../interfaces";
-import { cloudinary } from "../../lib/cloudinary";
+import { type IQueryForCourier } from "../../interfaces";
+// import { cloudinary } from "../../lib/cloudinary";
 import { transporter } from "../../lib/nodemailer";
 import { prisma } from "../../lib/prisma";
 import { redisClient } from "../../lib/redis";
 import type { RequestUser } from "../../middleware/checkAuth";
 import { AppError } from "../../utils/AppError";
 import {
-	CourierManAssignType,
+	CourierManCurrentStatus,
+	// CourierManAssignType,
 	CourierManVerificationStatus,
 	Role,
 	UserStatus,
@@ -29,6 +30,97 @@ import type {
 	IUpdateLocationPayload,
 	IAdminUpdateCourierManPayload,
 } from "./courierman.validation";
+
+// const applyAsCourierMan = async (payload: IApplyAsCourierManPayload) => {
+// 	const isUserExists = await prisma.user.findUnique({
+// 		where: { email: payload.user.email },
+// 	});
+
+// 	if (isUserExists) {
+// 		throw new AppError(
+// 			httpStatus.CONFLICT,
+// 			"User already exists with this email",
+// 		);
+// 	}
+
+// 	if (payload.courierMan.vehicleNumber) {
+// 		const existingVehicle = await prisma.courierMan.findUnique({
+// 			where: { vehicleNumber: payload.courierMan.vehicleNumber },
+// 		});
+// 		if (existingVehicle) {
+// 			throw new AppError(
+// 				httpStatus.CONFLICT,
+// 				"This vehicle number is already registered",
+// 			);
+// 		}
+// 	}
+
+// 	if (payload.courierMan.licenseNumber) {
+// 		const existingLicense = await prisma.courierMan.findUnique({
+// 			where: { licenseNumber: payload.courierMan.licenseNumber },
+// 		});
+// 		if (existingLicense) {
+// 			throw new AppError(
+// 				httpStatus.CONFLICT,
+// 				"This license number is already registered",
+// 			);
+// 		}
+// 	}
+
+// 	const courierManApplication = await prisma.user.create({
+// 		data: {
+// 			name: payload.user.name,
+// 			email: payload.user.email,
+// 			phone: payload.user.phone,
+// 			gender: payload.user.gender,
+// 			role: Role.COURIER_MAN,
+// 			courierMan: {
+// 				create: {
+// 					courierManAssignType: payload.courierMan.courierManAssignType,
+// 					vehicleType: payload.courierMan.vehicleType,
+// 					vehicleNumber: payload.courierMan.vehicleNumber,
+// 					licenseNumber: payload.courierMan.licenseNumber,
+// 					maxCapacity: payload.courierMan.maxCapacity,
+// 					bio: payload.courierMan.bio,
+// 					qualifications: payload.courierMan.qualifications,
+// 					experienceYears: payload.courierMan.experienceYears,
+// 				},
+// 			},
+// 		},
+// 		include: { courierMan: true },
+// 	});
+
+// 	const expirationSeconds = 60 * 60;
+// 	const otpKey = `courierMan-application-otp:${payload.user.email}`;
+// 	const otpValue = crypto.randomInt(100000, 1000000).toString();
+
+// 	await redisClient.set(otpKey, otpValue, {
+// 		expiration: { type: "EX", value: expirationSeconds },
+// 	});
+
+// 	const templatePath = path.join(
+// 		process.cwd(),
+// 		"src/app/templates/otp-for-one-hour.ejs",
+// 	);
+// 	const html = await ejs.renderFile(templatePath, {
+// 		name: payload.user.name,
+// 		email: payload.user.email,
+// 		otp: otpValue,
+// 		expirationMinutes: expirationSeconds / 60,
+// 	});
+
+// 	await transporter.sendMail({
+// 		from: {
+// 			name: "Courier & Logistics Management",
+// 			address: config.email_sender,
+// 		},
+// 		to: payload.user.email,
+// 		subject: "Courier Man Application - Email Verification",
+// 		html,
+// 	});
+
+// 	return courierManApplication;
+// };
 
 const applyAsCourierMan = async (payload: IApplyAsCourierManPayload) => {
 	const isUserExists = await prisma.user.findUnique({
@@ -66,60 +158,85 @@ const applyAsCourierMan = async (payload: IApplyAsCourierManPayload) => {
 		}
 	}
 
-	const courierManApplication = await prisma.user.create({
-		data: {
-			name: payload.user.name,
-			email: payload.user.email,
-			phone: payload.user.phone,
-			gender: payload.user.gender,
-			role: Role.COURIER_MAN,
-			courierMan: {
-				create: {
-					courierManAssignType: payload.courierMan.courierManAssignType,
-					vehicleType: payload.courierMan.vehicleType,
-					vehicleNumber: payload.courierMan.vehicleNumber,
-					licenseNumber: payload.courierMan.licenseNumber,
-					maxCapacity: payload.courierMan.maxCapacity,
-					bio: payload.courierMan.bio,
-					qualifications: payload.courierMan.qualifications,
-					experienceYears: payload.courierMan.experienceYears,
+	const courierManApplication = await prisma.user
+		.create({
+			data: {
+				name: payload.user.name,
+				email: payload.user.email,
+				phone: payload.user.phone,
+				gender: payload.user.gender,
+				role: Role.COURIER_MAN,
+				courierMan: {
+					create: {
+						vehicleType: payload.courierMan.vehicleType,
+						vehicleNumber: payload.courierMan.vehicleNumber,
+						licenseNumber: payload.courierMan.licenseNumber,
+						maxCapacity: payload.courierMan.maxCapacity,
+						bio: payload.courierMan.bio,
+						qualifications: payload.courierMan.qualifications,
+						experienceYears: payload.courierMan.experienceYears,
+					},
 				},
 			},
-		},
-		include: { courierMan: true },
-	});
+			include: { courierMan: true },
+		})
+		.catch((error) => {
+			
+			if ((error as { code?: string })?.code === "P2002") {
+				throw new AppError(
+					httpStatus.CONFLICT,
+					"Email, vehicle number or license number is already registered",
+				);
+			}
+
+			throw error;
+		});
 
 	const expirationSeconds = 60 * 60;
 	const otpKey = `courierMan-application-otp:${payload.user.email}`;
 	const otpValue = crypto.randomInt(100000, 1000000).toString();
 
-	await redisClient.set(otpKey, otpValue, {
-		expiration: { type: "EX", value: expirationSeconds },
-	});
+	try {
+		await redisClient.set(otpKey, otpValue, {
+			expiration: { type: "EX", value: expirationSeconds },
+		});
 
-	const templatePath = path.join(
-		process.cwd(),
-		"src/app/templates/otp-for-one-hour.ejs",
-	);
-	const html = await ejs.renderFile(templatePath, {
-		name: payload.user.name,
-		email: payload.user.email,
-		otp: otpValue,
-		expirationMinutes: expirationSeconds / 60,
-	});
+		const templatePath = path.join(
+			process.cwd(),
+			"src/app/templates/otp-for-one-hour.ejs",
+		);
+		const html = await ejs.renderFile(templatePath, {
+			name: payload.user.name,
+			email: payload.user.email,
+			otp: otpValue,
+			expirationMinutes: expirationSeconds / 60,
+		});
 
-	await transporter.sendMail({
-		from: {
-			name: "Courier & Logistics Management",
-			address: config.email_sender,
-		},
-		to: payload.user.email,
-		subject: "Courier Man Application - Email Verification",
-		html,
-	});
+		await transporter.sendMail({
+			from: {
+				name: "Courier & Logistics Management",
+				address: config.email_sender,
+			},
+			to: payload.user.email,
+			subject: "Courier Man Application - Email Verification",
+			html,
+		});
+	} catch (error) {
+		console.log("Error sending email or setting OTP in Redis:", error);
+		await prisma.user
+			.delete({ where: { id: courierManApplication.id } })
+			.catch(() => {});
+		await redisClient.del(otpKey).catch(() => {});
+
+		throw new AppError(
+			httpStatus.BAD_GATEWAY,
+			"Could not send the verification email. Please try again.",
+		);
+	}
 
 	return courierManApplication;
 };
+
 
 const verifyCourierManEmail = async (
 	payload: ICourierManEmailVerifyPayload,
@@ -307,25 +424,19 @@ const getAllCourierMans = async (query: IQueryForCourier) => {
 		andConditions.push({
 			OR: [
 				{ user: { name: { contains: query.searchTerm, mode: "insensitive" } } },
-				{
-					user: { email: { contains: query.searchTerm, mode: "insensitive" } },
-				},
+				{ user: { email: { contains: query.searchTerm, mode: "insensitive" } } },
 				{ vehicleNumber: { contains: query.searchTerm, mode: "insensitive" } },
 				{ licenseNumber: { contains: query.searchTerm, mode: "insensitive" } },
 			],
 		});
 	}
 
-	if (query.courierManAssignType) {
-		andConditions.push({
-			courierManAssignType: query.courierManAssignType as
-				| "HUB_TRANSFER"
-				| "LAST_MILE",
-		});
-	}
+	
 
 	if (query.currentStatus) {
-		andConditions.push({ currentStatus: query.currentStatus as any });
+		andConditions.push({
+			currentStatus: query.currentStatus as CourierManCurrentStatus,
+		});
 	}
 
 	if (query.isAvailable !== undefined) {
@@ -334,8 +445,7 @@ const getAllCourierMans = async (query: IQueryForCourier) => {
 
 	if (query.verificationStatus) {
 		andConditions.push({
-			verificationStatus:
-				query.verificationStatus as CourierManVerificationStatus,
+			verificationStatus: query.verificationStatus as CourierManVerificationStatus,
 		});
 	}
 
@@ -564,7 +674,7 @@ const adminDeleteCourierMan = async (courierManId: string) => {
 		throw new AppError(httpStatus.GONE, "Courier Man Already Deleted");
 	}
 
-	const deletedCourierMan = await prisma.$transaction(async (tx) => {
+	 await prisma.$transaction(async (tx) => {
 		const courierMan = await tx.courierMan.update({
 			where: { id: courierManId },
 			data: {

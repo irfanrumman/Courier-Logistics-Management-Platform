@@ -11,7 +11,7 @@ const applyAsCourierMan = catchAsync(async (req: Request, res: Response) => {
 	sendResponse(res, {
 		statusCode: httpStatus.CREATED,
 		success: true,
-		message: "Applied As Courier Man Successfully",
+		message: "Application submitted successfully. Please verify your email within 1 hour; otherwise, your account will be deleted.",
 		data: result,
 	});
 });

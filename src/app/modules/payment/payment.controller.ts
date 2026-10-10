@@ -4,6 +4,18 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { PaymentServices } from "./payment.service";
 
+
+const stripeWebhook = catchAsync(async (req: Request, res: Response) => {
+  const signature = req.headers['stripe-signature'] as string;
+
+
+  const rawBody = (req as any).rawBody ?? req.body;
+
+  const result = await PaymentServices.handleStripeWebhook(rawBody, signature);
+
+  res.status(httpStatus.OK).json(result);
+});
+
 const getMyPayments = catchAsync(async (req: Request, res: Response) => {
 	const user = req.user!;
 	const { data, meta } = await PaymentServices.getMyPayments(req.query, user);
@@ -43,6 +55,7 @@ const getSinglePayment = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const PaymentController = {
+	stripeWebhook,
 	getMyPayments,
 	getAllPayments,
 	getSinglePayment,

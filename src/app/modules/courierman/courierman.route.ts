@@ -29,19 +29,19 @@ router.post(
 
 router.get(
 	"/all-courier-mans",
-	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
 	CourierManController.getAllCourierMans,
 );
 
 router.get(
 	"/single-courier-man/:courierManId",
-	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
 	CourierManController.getSingleCourierManById,
 );
 
 router.patch(
 	"/admin-update/:courierManId",
-	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	auth(Role.ADMIN, Role.SUPER_ADMIN, Role.HUB_MANAGER),
 	validateRequest(courierManValidation.adminUpdateCourierManZodSchema),
 	CourierManController.adminUpdateCourierMan,
 );

@@ -37,9 +37,8 @@ enum PaymentStatus {
 
 
 enum PaymentMethod {
-  CARD
-  CASH_ON_DELIVERY
   BKASH
+  STRIPE
   
 }
 
@@ -86,8 +85,9 @@ enum ShiftStatusForHubManager {
 }
 
 enum CourierManAssignType {
+  PICKUP_TO_HUB
   HUB_TRANSFER
-  LAST_MILE
+  DELIVERY_TO_RECEIVER
 }
 
 enum ShipmentStatus {

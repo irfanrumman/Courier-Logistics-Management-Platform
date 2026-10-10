@@ -11,6 +11,88 @@ import {
 	UserStatus,
 } from "../../../generated/prisma/enums";
 import type { IQueryForPayment } from "./payment.interface";
+import Stripe from "stripe";
+import { stripe } from "../../lib/stripe";
+import config from "../../config";
+
+
+
+//stripe webhook handler
+const handleStripeWebhook = async (rawBody: Buffer, signature: string) => {
+	
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      config.stripe_live_webhook_secret,
+    );
+  } catch (error) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `Webhook signature verification failed: ${(error as Error).message}`,
+    );
+  }
+
+  switch (event.type) {
+    case "checkout.session.completed": {
+      const session = event.data.object as Stripe.Checkout.Session;
+
+     
+      const payment = await prisma.payment.findUnique({
+        where: { gatewayReferenceId: session.id },
+		include: { shipment: { select: { senderId: true } } },
+      });
+
+      
+      if (payment && payment.status !== "PAID") {
+        await prisma.$transaction([
+          prisma.payment.update({
+            where: { gatewayReferenceId: session.id },
+            data: {
+              status: "PAID",
+              paidAt: new Date(),
+              gatewayTransactionId:
+                typeof session.payment_intent === "string"
+                  ? session.payment_intent
+                  : undefined,
+            },
+          }),
+          prisma.shipment.update({
+            where: { id: payment.shipmentId },
+            data: { status: "PICKUP_REQUESTED" },
+          }),
+          prisma.shipmentStatusHistory.create({
+            data: {
+              shipmentId: payment.shipmentId,
+              status: "PICKUP_REQUESTED",
+              note: "Payment confirmed, pickup requested",
+              updatedById: payment.shipment.senderId,
+            },
+          }),
+        ]);
+      }
+      break;
+    }
+
+    case "checkout.session.expired": {
+      const session = event.data.object as Stripe.Checkout.Session;
+
+      await prisma.payment.updateMany({
+        where: { gatewayReferenceId: session.id },
+        data: { status: "FAILED" },
+      });
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  return { received: true };
+};
+
 
 const getMyPayments = async (query: IQueryForPayment, user: RequestUser) => {
 	const limit = query.limit ? Number(query.limit) : 10;
@@ -166,6 +248,7 @@ const getSinglePayment = async (paymentId: string, user: RequestUser) => {
 };
 
 export const PaymentServices = {
+	handleStripeWebhook,
 	getMyPayments,
 	getAllPayments,
 	getSinglePayment,

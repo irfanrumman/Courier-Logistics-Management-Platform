@@ -2,7 +2,7 @@ model CourierMan {
   id                 String   @id @default(uuid())
  
 
-  courierManAssignType        CourierManAssignType
+  // courierManAssignType        CourierManAssignType
   vehicleType        String?
   vehicleNumber      String?  @unique
   licenseNumber      String?  @unique
@@ -43,6 +43,7 @@ model CourierMan {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  pickupShipments    Shipment[] @relation("ShipmentPickupCourierMan")
   transferShipments  Shipment[] @relation("ShipmentTransferCourierMan")
   lastMileShipments  Shipment[] @relation("ShipmentLastMileCourierMan")
   codCollections    CodCollection[] 
